@@ -1,12 +1,11 @@
 'use client'
-import { Client, Account, OAuthProvider } from 'appwrite'
+import { Client, Account, ID, OAuthProvider } from 'appwrite'
 import { useState, useEffect } from 'react'
-import Image from 'next/image'
-import { TbPassword } from 'react-icons/tb'
 import Link from 'next/link'
+import Image from 'next/image'
+import Header from '@/components/header'
 import { useRouter } from 'next/navigation'
 import useAppwriteUser from '@/hooks/useAppwriteUser'
-import Header from '@/components/header'
 import LoadingScreen from '@/components/LoadingScreen'
 
 const client = new Client()
@@ -15,9 +14,12 @@ const client = new Client()
 
 const account = new Account(client)
 
-export default function LoginPage() {
+export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
   const router = useRouter()
   const { user, loading } = useAppwriteUser()
 
@@ -30,21 +32,22 @@ export default function LoginPage() {
   if (loading) {
     return <LoadingScreen />
   }
-  const handleLogin = async () => {
+  const handleSignup = async () => {
     try {
-      await account.createEmailPasswordSession(email, password)
+      setError('')
+      await account.create(ID.unique(), email, password, name)
       router.push('/dashboard')
-    } catch (err) {
-      console.error(err)
+    } catch (err: any) {
+      setError(err.message || 'Signup failed')
     }
   }
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleSignup = async () => {
     try {
       await account.createOAuth2Session({
         provider: OAuthProvider.Google,
         success: 'http://localhost:3000/dashboard',
-        failure: 'http://localhost:3000/login'
+        failure: 'http://localhost:3000/signup'
       })
     } catch (err) {
       console.error(err)
@@ -55,21 +58,32 @@ export default function LoginPage() {
     <>
       <Header />
       <div className="min-h-screen flex items-center justify-center bg-base-300 px-4">
-        <div className="bg-base-200 rounded-2xl shadow-xl py-8 flex flex-col md:flex-row items-center w-full max-w-5xl overflow-hidden">
+        <div className="bg-base-200 rounded-2xl shadow-xl flex flex-col py-8 md:flex-row items-center w-full max-w-5xl overflow-hidden">
+          
           {/* Image */}
           <div className="hidden md:flex md:w-1/2 justify-center items-center bg-base-100 p-6">
-            <Image src="/login.png" alt="login illustration" width={400} height={300} />
+            <Image src="/login.png" alt="signup illustration" width={400} height={300} />
           </div>
 
-          {/* Form */}
+          {/* Signup Form */}
           <div className="flex flex-col justify-center items-center w-full md:w-1/2 p-8">
-            <h2 className="text-2xl font-bold mb-6 text-center">Welcome Back 👋</h2>
+            <h2 className="text-2xl font-bold mb-6 text-center">Create an Account ✨</h2>
 
+            {error && <p className="text-red-500 mb-3">{error}</p>}
+            {success && (
+              <p className="text-green-600 mb-3">
+                Account created! You can now{' '}
+                <Link href="/login" className="link link-primary">
+                  login
+                </Link>.
+              </p>
+            )}
+
+            {/* Google Signup Button */}
             <button
               className="btn bg-base-100 rounded-lg border border-neutral w-full flex items-center gap-2 mb-4 hover:bg-base-200"
-              onClick={handleGoogleLogin}
+              onClick={handleGoogleSignup}
             >
-              {/* Google SVG */}
               <svg aria-label="Google logo" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
                 <g>
                   <path d="M0 0h512v512H0z" fill="#fff"/>
@@ -79,10 +93,21 @@ export default function LoginPage() {
                   <path fill="#ea4335" d="M153 219c22-69 116-109 179-50l55-54c-78-75-230-72-297 55"/>
                 </g>
               </svg>
-              Login with Google
+              Sign up with Google
             </button>
 
             <p className="text-sm text-gray-500 my-3">— or use your email —</p>
+
+            <label className="input input-bordered w-full mb-4 flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Your Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                className="grow"
+              />
+            </label>
 
             <label className="input input-bordered w-full mb-4 flex items-center gap-2">
               <input
@@ -96,10 +121,9 @@ export default function LoginPage() {
             </label>
 
             <label className="input input-bordered w-full mb-6 flex items-center gap-2">
-              <TbPassword className="h-[1.2em] opacity-50" />
               <input
                 type="password"
-                placeholder="password"
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -109,15 +133,15 @@ export default function LoginPage() {
 
             <button
               className="btn btn-primary w-full rounded-lg mb-4"
-              onClick={handleLogin}
+              onClick={handleSignup}
             >
-              Login
+              Sign up
             </button>
 
             <p className="text-sm text-gray-600">
-              Don&apos;t have an account?{' '}
-              <Link href="/signup" className="link link-primary">
-                Sign up
+              Already have an account?{' '}
+              <Link href="/login" className="link link-primary">
+                Login
               </Link>
             </p>
           </div>

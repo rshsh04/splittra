@@ -4,12 +4,13 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import HouseholdSetup from "@/components/householdsetup";
 import useAppwriteUser from "@/hooks/useAppwriteUser";
 import HomeComponent from "@/components/homecomponent";
+import LoadingScreen from "@/components/LoadingScreen";
 
 export default function Home() {
   const { user, loading } = useAppwriteUser();
 
   if (loading) {
-    return <div className="p-4 text-gray-500">Loading user...</div>;
+    return <LoadingScreen />;
   }
 
   if (user?.householdId) {

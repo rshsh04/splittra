@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+    images: {
+    domains: ["images.unsplash.com"], // Add any external domains you use
+  },
   /* config options here */
 };
 
