@@ -20,7 +20,7 @@ export default function LoginPage() {
   }  
   const handleGoogleLogin = async () => {
     try {
-      await account.createOAuth2Session(OAuthProvider.Google, 'http://localhost:3000', 'http://localhost:3000')
+      await account.createOAuth2Session(OAuthProvider.Google, '', '')
     } catch (err) {
       console.error(err)
     }
