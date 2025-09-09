@@ -1,8 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { ReactNode, useState } from 'react'
 import { databases, ID, Query } from '@/lib/appwrite'
-
-export default function HouseholdSetup({ user }: { user: any }) {
+export default function HouseholdSetup({ user, children }: { user: any; children?: ReactNode }) {
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [friendCode, setFriendCode] = useState('')
 
@@ -76,8 +75,7 @@ try {
 
     const household = result.documents[0]
 
-    // Check 2-user limit
-    if (household.members.length >= 2) return alert('Household is full.')
+
 
     // Add current user to members
     const updatedHousehold = await databases.updateDocument({
