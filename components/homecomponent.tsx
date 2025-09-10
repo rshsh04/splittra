@@ -1,8 +1,8 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
-import { account, databases } from "@/lib/appwrite"
+import { account, databases, storage, ID } from "@/lib/appwrite"
 import Expenses from "./expenses"
-import { ChevronDown, Settings, LogOut, Users, Edit2, Check, X, User, Mail, Camera, Save } from "lucide-react"
+import { ChevronDown, Settings, LogOut, Users, Edit2, Check, X, User, Mail, Camera, Save, Crown } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -21,7 +21,11 @@ export default function HomeComponent({ user }: { user: any }) {
     profilePicture: user?.profilePicture || ""
   })
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
-  
+  const [showPremiumModal, setShowPremiumModal] = useState(false)
+
+  const isPremium = user?.isPremium || false
+  const premiumUntil = user?.premiumUntil ? new Date(user.premiumUntil) : null
+
   const householdRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
@@ -160,15 +164,41 @@ export default function HomeComponent({ user }: { user: any }) {
     })
   }
 
-  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfileImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setProfileData(prev => ({ ...prev, profilePicture: result }))
+    if (!file) return
+
+    try {
+      // Upload file to Appwrite Storage
+      const uploadedFile = await storage.createFile(
+        process.env.NEXT_PUBLIC_APPWRITE_PP_BUCKET!,
+        ID.unique(),
+        file
+      )
+
+      // Get the file view URL
+      const fileUrl = storage.getFileView(
+        process.env.NEXT_PUBLIC_APPWRITE_PP_BUCKET!,
+        uploadedFile.$id
+      )
+
+      setProfileData(prev => ({ ...prev, profilePicture: fileUrl }))
+
+      // Delete old profile picture if it exists
+      if (user.profilePicture && user.profilePicture.includes('/storage/buckets/')) {
+        try {
+          const oldFileId = user.profilePicture.split('/').pop()
+          await storage.deleteFile(
+            process.env.NEXT_PUBLIC_APPWRITE_PP_BUCKET!,
+            oldFileId
+          )
+        } catch (error) {
+          console.error('Error deleting old profile picture:', error)
+        }
       }
-      reader.readAsDataURL(file)
+    } catch (error) {
+      console.error('Error uploading profile picture:', error)
+      alert('Failed to upload profile picture. Please try again.')
     }
   }
 
@@ -195,7 +225,7 @@ export default function HomeComponent({ user }: { user: any }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 transition-all duration-300">
       {/* Navbar */}
-      <nav className="bg-white shadow-sm border-b border-slate-200 px-6 py-4 flex items-center justify-between transition-all duration-300">
+      <nav className="bg-white shadow-sm border-b border-slate-200 px-6 py-4 flex items-center px-20 justify-between transition-all duration-300">
         <div className="flex items-center gap-3">
           <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
              <Link href="/" className="flex items-center gap-2 transition-all duration-300 hover:scale-105">
@@ -351,8 +381,15 @@ export default function HomeComponent({ user }: { user: any }) {
                 : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'
             }`}>
               <div className="p-4 bg-slate-50 border-b border-slate-200 transition-all duration-300">
-                <div className="font-semibold text-slate-800">
-                  {user?.name || user?.email || "User"}
+                <div className="flex items-center gap-2">
+                  <div className="font-semibold text-slate-800">
+                    {user?.name || user?.email || "User"}
+                  </div>
+                  {user?.isPremium && (
+                    <div title={`Premium until ${new Date(user.premiumUntil).toLocaleDateString()}`}>
+                      <Crown className="w-4 h-4 text-yellow-500" />
+                    </div>
+                  )}
                 </div>
                 <div className="text-sm text-slate-500">{user?.email}</div>
               </div>
@@ -363,6 +400,13 @@ export default function HomeComponent({ user }: { user: any }) {
                 >
                   <Settings className="w-4 h-4 transition-transform duration-300 hover:rotate-90" />
                   Account Settings
+                </button>
+                <button
+                  className="w-full text-left px-4 py-3 text-sm hover:bg-slate-50 text-slate-700 flex items-center gap-3 transition-all duration-300 hover:translate-x-1"
+                  onClick={() => setShowPremiumModal(true)}
+                >
+                  <Crown className="w-4 h-4 text-yellow-500" />
+                  {isPremium ? `Premium (Until ${premiumUntil?.toLocaleDateString()})` : 'Upgrade to Premium'}
                 </button>
               </div>
               <div className="border-t border-slate-200">
@@ -489,6 +533,75 @@ export default function HomeComponent({ user }: { user: any }) {
                   Save Changes
                 </>
               )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Premium Modal */}
+      <div className={`fixed inset-0 backdrop-blur-md bg-white bg-opacity-20 flex items-center justify-center z-[100] transition-all duration-500 ease-in-out ${
+        showPremiumModal 
+          ? 'opacity-100 visible' 
+          : 'opacity-0 invisible'
+      }`}>
+        <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto transition-all duration-500 ease-in-out transform ${
+          showPremiumModal 
+            ? 'scale-100 translate-y-0 opacity-100' 
+            : 'scale-75 translate-y-8 opacity-0'
+        }`}>
+          {/* Modal Header */}
+          <div className="p-6 border-b border-slate-200">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Crown className="w-6 h-6 text-yellow-500" />
+              Premium Subscription
+            </h2>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-6">
+            {isPremium ? (
+              <div>
+                <p className="text-lg text-gray-700 mb-4">
+                  Your premium subscription is active until {premiumUntil?.toLocaleDateString()}.
+                </p>
+                <div className="flex flex-col gap-4">
+                  <h3 className="font-semibold text-gray-900">Premium Features:</h3>
+                  <ul className="list-disc list-inside space-y-2 text-gray-700">
+                    <li>Advanced expense analytics</li>
+                    <li>Unlimited expense history</li>
+                    <li>Priority support</li>
+                    <li>Export reports</li>
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="text-lg text-gray-700 mb-4">
+                  Upgrade to Premium to unlock all features!
+                </p>
+                <div className="flex flex-col gap-4">
+                  <h3 className="font-semibold text-gray-900">Premium Features:</h3>
+                  <ul className="list-disc list-inside space-y-2 text-gray-700">
+                    <li>Advanced expense analytics</li>
+                    <li>Unlimited expense history</li>
+                    <li>Priority support</li>
+                    <li>Export reports</li>
+                  </ul>
+                  <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-all transform hover:scale-105">
+                    Upgrade Now
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-6 border-t border-slate-200">
+            <button
+              onClick={() => setShowPremiumModal(false)}
+              className="w-full px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-all duration-300 font-medium hover:scale-105"
+            >
+              Close
             </button>
           </div>
         </div>

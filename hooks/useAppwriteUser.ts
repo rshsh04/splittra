@@ -28,6 +28,8 @@ export default function useAppwriteUser() {
               name: sessionUser.name || '',
               email: sessionUser.email,
               householdId: null,
+              isPremium: true,
+              premiumUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days from now
             }
           )
         } else {

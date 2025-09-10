@@ -3,6 +3,8 @@ import { Client, Account, OAuthProvider } from 'appwrite'
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { TbPassword } from 'react-icons/tb'
+import { Bounce, ToastContainer, toast } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useAppwriteUser from '@/hooks/useAppwriteUser'
@@ -30,11 +32,39 @@ export default function LoginPage() {
   if (loading) {
     return <LoadingScreen />
   }
+  const validateForm = () => {
+    if (!email || !password) {
+      toast.error('Email and password are required')
+      return false
+    }
+    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      toast.error('Please enter a valid email address')
+      return false
+    }
+    return true
+  }
+
   const handleLogin = async () => {
     try {
-      await account.createEmailPasswordSession(email, password)
+      if (!validateForm()) return
+
+      const promise = account.createEmailPasswordSession(email, password)
+
+      toast.promise(promise, {
+        pending: 'Logging in...',
+        success: 'Login successful! 👋',
+        error: {
+          render({ data }: { data?: Error }) {
+            const message = data?.message || 'Login failed'
+            console.error(data)
+            return message
+          }
+        }
+      })
+
+      await promise
       router.push('/dashboard')
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
     }
   }
@@ -53,6 +83,20 @@ export default function LoginPage() {
 
   return (
     <>
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        limit={3}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick={false}
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+        transition={Bounce}
+      />
       <Header />
       <div className="min-h-screen flex items-center justify-center bg-base-300 px-4">
         <div className="bg-base-200 rounded-2xl shadow-xl py-8 flex flex-col md:flex-row items-center w-full max-w-5xl overflow-hidden">
@@ -72,11 +116,11 @@ export default function LoginPage() {
               {/* Google SVG */}
               <svg aria-label="Google logo" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
                 <g>
-                  <path d="M0 0h512v512H0z" fill="#fff"/>
-                  <path fill="#34a853" d="M153 292c30 82 118 95 171 60h62v48A192 192 0 0190 341"/>
-                  <path fill="#4285f4" d="M386 400a140 175 0 0053-179H260v74h102q-7 37-38 57"/>
-                  <path fill="#fbbc02" d="M90 341a208 200 0 010-171l63 49q-12 37 0 73"/>
-                  <path fill="#ea4335" d="M153 219c22-69 116-109 179-50l55-54c-78-75-230-72-297 55"/>
+                  <path d="M0 0h512v512H0z" fill="#fff" />
+                  <path fill="#34a853" d="M153 292c30 82 118 95 171 60h62v48A192 192 0 0190 341" />
+                  <path fill="#4285f4" d="M386 400a140 175 0 0053-179H260v74h102q-7 37-38 57" />
+                  <path fill="#fbbc02" d="M90 341a208 200 0 010-171l63 49q-12 37 0 73" />
+                  <path fill="#ea4335" d="M153 219c22-69 116-109 179-50l55-54c-78-75-230-72-297 55" />
                 </g>
               </svg>
               Login with Google

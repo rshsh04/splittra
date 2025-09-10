@@ -17,7 +17,7 @@ export default function Header() {
   }
 
   return (
-    <header className="bg-base-300 px-6 py-4 flex justify-between items-center shadow-md">
+    <header className="bg-base-300 px-6 py-4 flex justify-between px-40 items-center shadow-md">
       {/* Logo */}
       <Link href="/" className="flex items-center gap-2">
         <Image
