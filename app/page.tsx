@@ -142,7 +142,7 @@ export default function HomePage() {
             </div>
             <div className="lg:w-1/2 lg:pl-8">
               <div className="relative transform transition-all duration-1000 hover:translate-x-1">
-                <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-emerald-600/10 rounded-2xl transform rotate-3 scale-105"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-green-600/40 to-emerald-600/10 rounded-2xl transform rotate-3 scale-105"></div>
                 <Image
                   src="/payy.jpg"
                   alt="Hero Image"
