@@ -165,7 +165,7 @@ export default function Expenses({ user }: { user: any }) {
   const { balances, message, totalRegular, totalLoans } = calculateBalances()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 ">
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center">

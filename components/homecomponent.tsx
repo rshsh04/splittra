@@ -5,6 +5,8 @@ import Expenses from "./expenses"
 import { ChevronDown, Settings, LogOut, Users, Edit2, Check, X, User, Mail, Camera, Save, Crown } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { ToastContainer, toast } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 
 export default function HomeComponent({ user }: { user: any }) {
   const [householdName, setHouseholdName] = useState("Household")
@@ -89,7 +91,7 @@ export default function HomeComponent({ user }: { user: any }) {
 
   const handleLeaveHousehold = async () => {
     if (!user?.householdId) return
-    if (!confirm("Are you sure you want to leave this household?")) return
+
     
     try {
       const household = await databases.getDocument(databaseId, householdsCollection, user.householdId)
@@ -146,7 +148,16 @@ export default function HomeComponent({ user }: { user: any }) {
   const copyHouseholdCode = async () => {
     if (householdCode) {
       await navigator.clipboard.writeText(householdCode)
-      // Could add a toast notification here
+      toast.success('Invite code copied to clipboard!', {
+        position: "top-center",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      })
     }
   }
 
@@ -223,11 +234,12 @@ export default function HomeComponent({ user }: { user: any }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 transition-all duration-300">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-slate-50 transition-all duration-300">
+      <ToastContainer />
       {/* Navbar */}
       <nav className="bg-white shadow-sm border-b border-slate-200 px-6 py-4 flex items-center px-20 justify-between transition-all duration-300">
         <div className="flex items-center gap-3">
-          <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <div className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
              <Link href="/" className="flex items-center gap-2 transition-all duration-300 hover:scale-105">
               <Image
                 src="/logo.png"
@@ -245,7 +257,7 @@ export default function HomeComponent({ user }: { user: any }) {
           {/* Household Dropdown */}
           <div ref={householdRef} className="relative">
             <button
-              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2 rounded-lg transition-all duration-300 ease-in-out border border-slate-300 hover:border-slate-400 hover:shadow-md transform hover:-translate-y-0.5"
+              className="flex items-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 font-medium px-4 py-2 rounded-lg transition-all duration-300 ease-in-out border border-green-200 hover:border-green-300 hover:shadow-md transform hover:-translate-y-0.5"
               onClick={() => setShowHouseholdDropdown(!showHouseholdDropdown)}
             >
               <Users className="w-4 h-4 transition-transform duration-300" />
@@ -272,7 +284,7 @@ export default function HomeComponent({ user }: { user: any }) {
                           value={editNameValue}
                           onChange={(e) => setEditNameValue(e.target.value)}
                           onKeyDown={handleNameKeyPress}
-                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all duration-300 focus:scale-105"
+                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none text-sm transition-all duration-300 focus:scale-105"
                           placeholder="Enter household name"
                         />
                         <button
@@ -372,7 +384,7 @@ export default function HomeComponent({ user }: { user: any }) {
               <img
                 src={user?.profilePicture || "/default-avatar.jpg"}
                 alt="Profile"
-                className="w-10 h-10 rounded-full border-2 border-slate-200 object-cover transition-all duration-300 hover:border-blue-300"
+                className="w-10 h-10 rounded-full border-2 border-slate-200 object-cover transition-all duration-300 hover:border-green-300"
               />
             </button>
             <div className={`absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50 transition-all duration-300 ease-in-out transform ${
@@ -462,7 +474,7 @@ export default function HomeComponent({ user }: { user: any }) {
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-300 shadow-lg hover:scale-110 hover:shadow-xl"
+                  className="absolute bottom-0 right-0 p-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition-all duration-300 shadow-lg hover:scale-110 hover:shadow-xl"
                   title="Change profile picture"
                 >
                   <Camera className="w-4 h-4 transition-transform duration-300 hover:rotate-12" />
@@ -488,7 +500,7 @@ export default function HomeComponent({ user }: { user: any }) {
                 type="text"
                 value={profileData.name}
                 onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-300 focus:scale-105 focus:shadow-md"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all duration-300 focus:scale-105 focus:shadow-md"
                 placeholder="Enter your name"
               />
             </div>
@@ -520,7 +532,7 @@ export default function HomeComponent({ user }: { user: any }) {
             <button
               onClick={updateProfile}
               disabled={isUpdatingProfile}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg"
+              className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg"
             >
               {isUpdatingProfile ? (
                 <>

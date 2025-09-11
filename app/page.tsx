@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { ChevronDown, Users, Calculator, Bell, Star, ArrowRight, CheckCircle, DollarSign, Smartphone, Shield } from 'lucide-react';
+import { ChevronDown, Users, Calculator, Bell, Star, ArrowRight, CheckCircle, DollarSign, Smartphone, Shield} from 'lucide-react';
 import Header from '@/components/header';
-
+import Footer from '@/components/footer';
+import Image from 'next/image';
+import Link from 'next/link';
 const testimonials = [
   {
     name: "Sarah Johnson",
@@ -14,7 +16,7 @@ const testimonials = [
   },
   {
     name: "Mike Chen",
-    role: "Young Professional", 
+    role: "Young Professional",
     content: "Perfect for splitting dinner bills. The calculations are always spot-on.",
     rating: 5,
     avatar: "/boy.png",
@@ -92,51 +94,71 @@ export default function HomePage() {
       <Header />
 
       {/* Hero Section */}
-      <section className="pt-24 pb-20 px-4 bg-gradient-to-t from-white to-base-300">
-        <div className="max-w-7xl mx-auto">
-          <div className={`text-center transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6 leading-tight">
-              <DollarSign className="inline-block w-12 h-12 md:w-16 md:h-16 mb-2 text-blue-600" />
-              Split Expenses
-              <br />
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Effortlessly
-              </span>
-            </h1>
-            <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto leading-relaxed flex flex-col items-center gap-4">
-              <span className="flex items-center gap-2">
-                <Calculator className="w-6 h-6 text-blue-600" />
-                The most intuitive way to track, split, and settle shared expenses.
-              </span>
-              <span className="flex items-center gap-2">
-                <Users className="w-6 h-6 text-purple-600" />
-                Perfect for roommates, couples, friends, and families.
-              </span>
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-              <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all transform hover:scale-105 shadow-lg">
-                Start Free Trial
-                <ArrowRight className="inline ml-2 w-5 h-5" />
-              </button>
+      <section className="pt-24 pb-20 px-4 bg-gradient-to-t from-green-50 to-base-300">
+
+        <div className="container mx-auto">
+          <div className="flex flex-col-reverse lg:flex-row items-center gap-12">
+            <div className="lg:w-1/2 lg:pr-8">
+              <div className={`text-center lg:text-left transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+                <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6 leading-tight">
+                  <DollarSign className="inline-block w-12 h-12 md:w-16 md:h-16 mb-2 text-green-600" />
+                  Split Expenses
+                  <br />
+                  <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                    Effortlessly
+                  </span>
+                </h1>
+                <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto lg:mx-0 leading-relaxed flex flex-col items-center lg:items-start gap-4">
+                  <span className="flex items-center gap-2">
+                    <Calculator className="w-6 h-6 text-green-600 flex-shrink-0" />
+                    The most intuitive way to track, split, and settle shared expenses.
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <Users className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+                    Perfect for roommates, couples, friends, and families.
+                  </span>
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-16">
+                  <button className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all transform hover:scale-105 shadow-lg">
+                    Start Free Trial
+                    <ArrowRight className="inline ml-2 w-5 h-5" />
+                  </button>
+
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto mb-8 lg:mb-0">
+                  {stats.map((stat, index) => (
+                    <div key={index} className="text-center">
+                      <div className="text-3xl font-bold text-gray-900 mb-1">{stat.number}</div>
+                      <div className="text-sm text-gray-600">{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
 
             </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
-              {stats.map((stat, index) => (
-                <div key={index} className="text-center">
-                  <div className="text-3xl font-bold text-gray-900 mb-1">{stat.number}</div>
-                  <div className="text-sm text-gray-600">{stat.label}</div>
-                </div>
-              ))}
+            <div className="lg:w-1/2 lg:pl-8">
+              <div className="relative transform transition-all duration-1000 hover:translate-x-1">
+                <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-emerald-600/10 rounded-2xl transform rotate-3 scale-105"></div>
+                <Image
+                  src="/payy.jpg"
+                  alt="Hero Image"
+                  width={800}
+                  height={600}
+                  className="rounded-2xl shadow-xl w-full h-auto object-cover transform transition-all duration-1000 hover:scale-[1.02] relative z-10"
+                  priority
+                />
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-16 bg-gradient-to-b from-gray-50 to-white">
+      <section id="features" className="py-16 bg-gradient-to-b from-green-50 to-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold text-gray-900 mb-3">
@@ -153,9 +175,8 @@ export default function HomePage() {
               return (
                 <div
                   key={index}
-                  className={`bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-500 transform hover:-translate-y-1 ${
-                    activeFeature === index ? 'ring-2 ring-blue-500 shadow-xl' : ''
-                  }`}
+                  className={`bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-500 transform hover:-translate-y-1 ${activeFeature === index ? 'ring-2 ring-blue-500 shadow-xl' : ''
+                    }`}
                 >
                   <div className={`w-10 h-10 rounded-lg bg-gradient-to-r ${feature.color} flex items-center justify-center mb-4`}>
                     <Icon className="w-5 h-5 text-white" />
@@ -186,7 +207,7 @@ export default function HomePage() {
               { step: "3", title: "Track & Settle", desc: "See who owes what and mark payments as complete" }
             ].map((item, index) => (
               <div key={index} className="text-center relative">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white text-xl font-bold mx-auto mb-6">
+                <div className="w-16 h-16 bg-gradient-to-r from-green-200 to-green-500 rounded-full flex items-center justify-center text-white text-xl font-bold mx-auto mb-6">
                   {item.step}
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">{item.title}</h3>
@@ -240,32 +261,38 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-r from-blue-600 to-purple-600">
+      <section className="py-24 bg-gradient-to-r from-green-600 to-emerald-600">
         <div className="max-w-4xl mx-auto text-center px-4">
           <h2 className="text-4xl font-bold text-white mb-6">
             Ready to simplify your shared expenses?
           </h2>
-          <p className="text-xl text-blue-100 mb-10">
+          <p className="text-xl text-green-100 mb-10">
             Join thousands of users who've made splitting bills effortless
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="bg-white text-blue-600 px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all transform hover:scale-105 shadow-lg">
-              Start Free Trial
-            </button>
-            <button className="border-2 border-white text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white hover:text-blue-600 transition-all transform hover:scale-105">
-              Contact Sales
-            </button>
+            <Link href="/signup">
+              <button className="bg-white text-green-600 px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-all transform hover:scale-105 shadow-lg">
+                Start Free Trial
+              </button>
+            </Link>
+            <Link href="/support">
+              <button className="border-2 border-white text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white hover:text-green-600 transition-all transform hover:scale-105">
+                Contact Support
+              </button>
+            </Link>
           </div>
 
-          <div className="flex items-center justify-center mt-8 text-blue-100">
+          <div className="flex items-center justify-center mt-8 text-green-100">
             <CheckCircle className="w-5 h-5 mr-2" />
             <span>Free 14-day trial • No credit card required</span>
           </div>
         </div>
       </section>
 
- 
+      {/* Footer */}
+      <Footer />
+
     </div>
   );
 }

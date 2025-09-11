@@ -1,7 +1,7 @@
 'use client'
 import { ReactNode, useState } from 'react'
-import { databases, ID, Query } from '@/lib/appwrite'
-import { Home, Users, Copy, Plus } from 'lucide-react'
+import { databases, ID, Query, account } from '@/lib/appwrite'
+import { Home, Users, Copy, Plus, LogOut } from 'lucide-react'
 import Header from './header';
 
 export default function HouseholdSetup({ user, children }: { user: any; children?: ReactNode }) {
@@ -122,21 +122,40 @@ export default function HouseholdSetup({ user, children }: { user: any; children
     }
   }
 
+  const handleLogout = async () => {
+    try {
+      await account.deleteSession('current')
+      window.location.reload()
+    } catch (error) {
+      console.error('Error logging out:', error)
+    }
+  }
+
   return (
     <>
     <Header/>
     <div className="min-h-screen bg-base-300 flex items-center justify-center px-4 py-8">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-slate-200">
         {/* Header */}
-        <div className="text-center p-8 pb-6">
-          <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Home className="w-8 h-8 text-white" />
+        <div className="relative">
+          <div className="absolute top-4 right-4">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-slate-500 hover:text-red-600 transition-colors duration-200"
+              title="Sign Out"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">
-            Welcome {user?.name?.split(' ')[0] || 'User'}!
-          </h1>
-          <p className="text-slate-600">Set up your household to start tracking expenses</p>
-        </div>
+          <div className="text-center p-8 pb-6">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Home className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-slate-800 mb-2">
+              Welcome {user?.name?.split(' ')[0] || 'User'}!
+            </h1>
+            <p className="text-slate-600">Set up your household to start tracking expenses</p>
+          </div>
 
         <div className="px-8 pb-8 space-y-6">
           {/* Create Household */}
@@ -219,6 +238,7 @@ export default function HouseholdSetup({ user, children }: { user: any; children
           </div>
         </div>
       </div>
+    </div>
     </div>
     </>
   )

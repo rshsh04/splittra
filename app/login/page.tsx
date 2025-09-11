@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import useAppwriteUser from '@/hooks/useAppwriteUser'
 import Header from '@/components/header'
 import LoadingScreen from '@/components/LoadingScreen'
+import Footer from '@/components/footer'
 
 const client = new Client()
   .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
@@ -101,7 +102,7 @@ export default function LoginPage() {
       <div className="min-h-screen flex items-center justify-center bg-base-300 px-4">
         <div className="bg-base-200 rounded-2xl shadow-xl py-8 flex flex-col md:flex-row items-center w-full max-w-5xl overflow-hidden">
           {/* Image */}
-          <div className="hidden md:flex md:w-1/2 justify-center items-center bg-base-100 p-6">
+          <div className="hidden md:flex md:w-1/2 justify-center items-center p-6">
             <Image src="/login.png" alt="login illustration" width={400} height={300} />
           </div>
 
@@ -167,6 +168,7 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </>
   )
 }
