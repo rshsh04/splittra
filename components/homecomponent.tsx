@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+import { Query } from "appwrite"
 import { account, databases, storage, ID } from "@/lib/appwrite"
 import Expenses from "./expenses"
 import { ChevronDown, Settings, LogOut, Users, Edit2, Check, X, User, Mail, Camera, Save, Crown } from "lucide-react"
@@ -9,9 +10,51 @@ import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 
 export default function HomeComponent({ user }: { user: any }) {
+  if (!user?.householdId) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-green-50 to-slate-50">
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200 text-center">
+          <h2 className="text-2xl font-bold text-slate-800 mb-4">You are not part of any household</h2>
+          <p className="text-slate-600 mb-6">Join or create a household to start tracking expenses.</p>
+          <Link href="/" className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300">Go to Home</Link>
+        </div>
+      </div>
+    )
+  }
+  const [pendingRemoveId, setPendingRemoveId] = useState<string|null>(null)
+  const [householdMembers, setHouseholdMembers] = useState<any[]>([])
+  const [householdOwnerId, setHouseholdOwnerId] = useState<string>("")
+  const [showHouseholdDropdown, setShowHouseholdDropdown] = useState(false)
+
+  // Fetch household members and owner
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (!user?.householdId) return
+      try {
+        const res = await databases.getDocument(databaseId, householdsCollection, user.householdId)
+        setHouseholdName(res.householdName || "Household")
+        setHouseholdCode(res.code || "")
+        setHouseholdOwnerId(res.ownerId || "")
+        // Fetch member details
+        if (res.members && res.members.length > 0) {
+          // Correct Appwrite query usage
+          const usersRes = await databases.listDocuments(
+            databaseId,
+            usersCollection,
+            [Query.equal("$id", res.members)]
+          )
+          setHouseholdMembers(usersRes.documents)
+        } else {
+          setHouseholdMembers([])
+        }
+      } catch (err) {
+        console.error("Error fetching household members:", err)
+      }
+    }
+    fetchMembers()
+  }, [user?.householdId, showHouseholdDropdown])
   const [householdName, setHouseholdName] = useState("Household")
   const [householdCode, setHouseholdCode] = useState("")
-  const [showHouseholdDropdown, setShowHouseholdDropdown] = useState(false)
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [isEditingName, setIsEditingName] = useState(false)
@@ -92,14 +135,14 @@ export default function HomeComponent({ user }: { user: any }) {
   const handleLeaveHousehold = async () => {
     if (!user?.householdId) return
 
-    
+
     try {
       const household = await databases.getDocument(databaseId, householdsCollection, user.householdId)
       await databases.updateDocument(databaseId, householdsCollection, household.$id, {
         members: household.members.filter((m: string) => m !== user.$id),
       })
-      await databases.updateDocument(databaseId, usersCollection, user.$id, { 
-        householdId: null 
+      await databases.updateDocument(databaseId, usersCollection, user.$id, {
+        householdId: null
       })
       window.location.reload()
     } catch (err) {
@@ -220,7 +263,7 @@ export default function HomeComponent({ user }: { user: any }) {
         name: profileData.name.trim(),
         profilePicture: profileData.profilePicture
       })
-      
+
       // Update the user object in parent component would be ideal, 
       // but for now we'll reload to get fresh data
       alert("Profile updated successfully!")
@@ -237,15 +280,15 @@ export default function HomeComponent({ user }: { user: any }) {
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-slate-50 transition-all duration-300">
       <ToastContainer />
       {/* Navbar */}
-      <nav className="bg-white shadow-sm border-b border-slate-200 px-6 py-4 flex items-center px-20 justify-between transition-all duration-300">
+  <nav className="bg-white shadow-sm border-b border-slate-200 px-4 py-4 flex flex-row sm:flex-row items-center sm:px-20 justify-between transition-all duration-300 gap-4">
         <div className="flex items-center gap-3">
           <div className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-             <Link href="/" className="flex items-center gap-2 transition-all duration-300 hover:scale-105">
+            <Link href="/" className="flex items-center gap-2 transition-all duration-300 hover:scale-105">
               <Image
                 src="/logo.png"
                 alt="Logo"
-                width={100}
-                height={40}
+                width={90}
+                height={90}
                 className="object-contain transition-all duration-300"
                 priority
               />
@@ -257,65 +300,67 @@ export default function HomeComponent({ user }: { user: any }) {
           {/* Household Dropdown */}
           <div ref={householdRef} className="relative">
             <button
-              className="flex items-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 font-medium px-4 py-2 rounded-lg transition-all duration-300 ease-in-out border border-green-200 hover:border-green-300 hover:shadow-md transform hover:-translate-y-0.5"
+              className="flex items-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 font-medium px-2 py-1 sm:px-4 sm:py-2 rounded-lg transition-all duration-300 ease-in-out border border-green-200 hover:border-green-300 hover:shadow-md transform hover:-translate-y-0.5 w-full sm:w-auto text-sm sm:text-base"
               onClick={() => setShowHouseholdDropdown(!showHouseholdDropdown)}
             >
               <Users className="w-4 h-4 transition-transform duration-300" />
-              {householdName}
+              <span className="truncate max-w-[80px] sm:max-w-none">{householdName}</span>
               <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showHouseholdDropdown ? 'rotate-180' : ''}`} />
             </button>
-            <div className={`absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50 transition-all duration-300 ease-in-out transform ${
-              showHouseholdDropdown 
-                ? 'opacity-100 translate-y-0 scale-100' 
-                : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'
-            }`}>
-              <div className="p-4 bg-slate-50 border-b border-slate-200 transition-all duration-300">
-                <div className="font-semibold text-slate-800 mb-2">Household Settings</div>
-                
-                {/* Inline Name Editor */}
-                <div className="space-y-3">
-                  <div className="text-sm text-slate-600">Household Name:</div>
-                  <div className={`transition-all duration-300 ease-in-out ${isEditingName ? 'scale-105' : 'scale-100'}`}>
-                    {isEditingName ? (
-                      <div className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-300">
-                        <input
-                          ref={nameInputRef}
-                          type="text"
-                          value={editNameValue}
-                          onChange={(e) => setEditNameValue(e.target.value)}
-                          onKeyDown={handleNameKeyPress}
-                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none text-sm transition-all duration-300 focus:scale-105"
-                          placeholder="Enter household name"
-                        />
-                        <button
-                          onClick={saveHouseholdName}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all duration-300 hover:scale-110 hover:shadow-md"
-                          title="Save"
-                        >
-                          <Check className="w-4 h-4 transition-transform duration-300 hover:rotate-12" />
-                        </button>
-                        <button
-                          onClick={cancelEditingName}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-300 hover:scale-110 hover:shadow-md"
-                          title="Cancel"
-                        >
-                          <X className="w-4 h-4 transition-transform duration-300 hover:rotate-90" />
-                        </button>
+            <div className={`fixed sm:absolute top-0 sm:top-auto left-0 right-0 sm:right-0 sm:left-auto mt-0 sm:mt-2 w-screen sm:w-128 bg-white rounded-xl shadow-xl border border-slate-200 overflow-y-auto z-[100] transition-all duration-300 ease-in-out transform ${showHouseholdDropdown
+              ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
+              : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'
+              }`} style={{ minHeight: '320px', padding: '1.25rem', maxHeight: '90vh' }}>
+              {/* Members List */}
+              <div className="p-4 border-b border-slate-200 bg-slate-50">
+                <div className="font-semibold text-slate-800 mb-2">Members</div>
+                <ul className="space-y-2">
+                  {householdMembers.map(member => (
+                    <li key={member.$id} className={`flex items-center justify-between p-2 rounded-lg ${member.$id === householdOwnerId ? 'bg-white border border-gray-300' : 'bg-white border border-slate-200'}`}>
+                      <div className="flex items-center gap-2 relative group">
+                        <img src={member.profilePicture || '/default-avatar.jpg'} alt={member.name} className="w-8 h-8 rounded-full border" />
+                        <span className={`font-medium ${member.$id === householdOwnerId ? 'text-yellow-700' : 'text-slate-800'}`}>{member.name || member.email}</span>
+                        {member.$id === householdOwnerId && (
+                          <>
+                            <Crown className="w-4 h-4 text-yellow-500 cursor-pointer group-hover:scale-110 transition-transform duration-200" />
+                            <span className="absolute right-10 top-1 z-10 hidden group-hover:flex bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-md border border-yellow-300 whitespace-nowrap">
+                              Owner of the household
+                            </span>
+                          </>
+                        )}
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-3 py-2 transition-all duration-300 hover:shadow-md hover:border-slate-300">
-                        <span className="text-slate-800 font-medium">{householdName}</span>
-                        <button
-                          onClick={startEditingName}
-                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded transition-all duration-300 hover:scale-110"
-                          title="Edit name"
-                        >
-                          <Edit2 className="w-4 h-4 transition-all duration-300 hover:rotate-12" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                      {user.$id === householdOwnerId && member.$id !== householdOwnerId && (
+                        (pendingRemoveId === member.$id ? (
+                          <button
+                            className="text-red-600 bg-red-100 border border-red-300 px-2 py-1 rounded font-bold animate-pulse"
+                            onClick={async () => {
+                              try {
+                                await databases.updateDocument(databaseId, householdsCollection, user.householdId, {
+                                  members: householdMembers.filter(m => m.$id !== member.$id).map(m => m.$id)
+                                })
+                                await databases.updateDocument(databaseId, usersCollection, member.$id, {
+                                  householdId: null
+                                })
+                                setHouseholdMembers(householdMembers.filter(m => m.$id !== member.$id))
+                                setPendingRemoveId(null)
+                                toast.success('Member removed!', { position: 'top-center', autoClose: 2000 })
+                              } catch (err) {
+                                toast.error('Failed to remove member')
+                                setPendingRemoveId(null)
+                              }
+                            }}
+                          >Sure?</button>
+                        ) : (
+                          <button
+                            className="text-red-600 hover:text-red-800 px-2 py-1 rounded transition-all duration-200 border border-red-200 bg-red-50 hover:bg-red-100"
+                            onClick={() => setPendingRemoveId(member.$id)}
+                          >Remove</button>
+                        ))
+                      )}
+                    </li>
+                  ))}
+                  {householdMembers.length === 0 && <li className="text-slate-500 text-sm">No members found</li>}
+                </ul>
               </div>
 
               <div className="py-2">
@@ -336,11 +381,10 @@ export default function HomeComponent({ user }: { user: any }) {
               </div>
 
               <div className="border-t border-slate-200">
-                <div className={`transition-all duration-300 ease-in-out ${
-                  showLeaveConfirm 
-                    ? 'max-h-40 opacity-100' 
-                    : 'max-h-0 opacity-0 overflow-hidden'
-                }`}>
+                <div className={`transition-all duration-300 ease-in-out ${showLeaveConfirm
+                  ? 'max-h-40 opacity-100'
+                  : 'max-h-0 opacity-0 overflow-hidden'
+                  }`}>
                   <div className="p-4 bg-red-50 animate-in slide-in-from-top-2 duration-300">
                     <p className="text-sm text-red-800 mb-3 font-medium">
                       Are you sure you want to leave this household? This action cannot be undone.
@@ -363,9 +407,8 @@ export default function HomeComponent({ user }: { user: any }) {
                   </div>
                 </div>
                 <button
-                  className={`w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-all duration-300 flex items-center gap-3 hover:translate-x-1 ${
-                    showLeaveConfirm ? 'hidden' : ''
-                  }`}
+                  className={`w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-all duration-300 flex items-center gap-3 hover:translate-x-1 ${showLeaveConfirm ? 'hidden' : ''
+                    }`}
                   onClick={() => setShowLeaveConfirm(true)}
                 >
                   <LogOut className="w-4 h-4 transition-transform duration-300 hover:-translate-x-1" />
@@ -378,20 +421,25 @@ export default function HomeComponent({ user }: { user: any }) {
           {/* Profile Dropdown */}
           <div ref={profileRef} className="relative">
             <button
-              className="flex items-center gap-2 hover:opacity-80 transition-all duration-300 hover:scale-110 hover:shadow-lg rounded-full"
+              className="flex items-center gap-2 hover:opacity-80 transition-all duration-300 hover:scale-105 hover:shadow rounded-full px-2 py-1 sm:px-4 sm:py-2 text-sm sm:text-base"
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
             >
+              {isPremium && (
+                <div style={{ color: 'gold', fontWeight: 'bold', marginBottom: 8 }} className="border border-yellow-400 px-2 py-1 mt-2 rounded-full bg-yellow-50 text-xs animate-pulse">
+                  ★ Premium User
+                </div>
+              )}
               <img
                 src={user?.profilePicture || "/default-avatar.jpg"}
                 alt="Profile"
                 className="w-10 h-10 rounded-full border-2 border-slate-200 object-cover transition-all duration-300 hover:border-green-300"
               />
+
             </button>
-            <div className={`absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50 transition-all duration-300 ease-in-out transform ${
-              showProfileDropdown 
-                ? 'opacity-100 translate-y-0 scale-100' 
-                : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'
-            }`}>
+            <div className={`absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50 transition-all duration-300 ease-in-out transform ${showProfileDropdown
+              ? 'opacity-100 translate-y-0 scale-100'
+              : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'
+              }`}>
               <div className="p-4 bg-slate-50 border-b border-slate-200 transition-all duration-300">
                 <div className="flex items-center gap-2">
                   <div className="font-semibold text-slate-800">
@@ -436,16 +484,14 @@ export default function HomeComponent({ user }: { user: any }) {
       </nav>
 
       {/* Profile Settings Modal */}
-      <div className={`fixed inset-0 backdrop-blur-md bg-white bg-opacity-20 flex items-center justify-center z-[100] transition-all duration-500 ease-in-out ${
-        showProfileModal 
-          ? 'opacity-100 visible' 
-          : 'opacity-0 invisible'
-      }`}>
-        <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto transition-all duration-500 ease-in-out transform ${
-          showProfileModal 
-            ? 'scale-100 translate-y-0 opacity-100' 
-            : 'scale-75 translate-y-8 opacity-0'
+      <div className={`fixed inset-0 backdrop-blur-md bg-white bg-opacity-20 flex items-center justify-center z-[100] transition-all duration-500 ease-in-out ${showProfileModal
+        ? 'opacity-100 visible'
+        : 'opacity-0 invisible'
         }`}>
+        <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto transition-all duration-500 ease-in-out transform ${showProfileModal
+          ? 'scale-100 translate-y-0 opacity-100'
+          : 'scale-75 translate-y-8 opacity-0'
+          }`}>
           {/* Modal Header */}
           <div className="p-6 border-b border-slate-200 transition-all duration-300">
             <div className="flex items-center justify-between">
@@ -551,16 +597,14 @@ export default function HomeComponent({ user }: { user: any }) {
       </div>
 
       {/* Premium Modal */}
-      <div className={`fixed inset-0 backdrop-blur-md bg-white bg-opacity-20 flex items-center justify-center z-[100] transition-all duration-500 ease-in-out ${
-        showPremiumModal 
-          ? 'opacity-100 visible' 
-          : 'opacity-0 invisible'
-      }`}>
-        <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto transition-all duration-500 ease-in-out transform ${
-          showPremiumModal 
-            ? 'scale-100 translate-y-0 opacity-100' 
-            : 'scale-75 translate-y-8 opacity-0'
+      <div className={`fixed inset-0 backdrop-blur-md bg-white bg-opacity-20 flex items-center justify-center z-[100] transition-all duration-500 ease-in-out ${showPremiumModal
+        ? 'opacity-100 visible'
+        : 'opacity-0 invisible'
         }`}>
+        <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto transition-all duration-500 ease-in-out transform ${showPremiumModal
+          ? 'scale-100 translate-y-0 opacity-100'
+          : 'scale-75 translate-y-8 opacity-0'
+          }`}>
           {/* Modal Header */}
           <div className="p-6 border-b border-slate-200">
             <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -568,7 +612,7 @@ export default function HomeComponent({ user }: { user: any }) {
               Premium Subscription
             </h2>
           </div>
-          
+
           {/* Modal Content */}
           <div className="p-6">
             {isPremium ? (
@@ -606,7 +650,7 @@ export default function HomeComponent({ user }: { user: any }) {
               </div>
             )}
           </div>
-          
+
           {/* Modal Footer */}
           <div className="p-6 border-t border-slate-200">
             <button

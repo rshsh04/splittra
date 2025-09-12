@@ -64,7 +64,17 @@ export default function LoginPage() {
       })
 
       await promise
-      router.push('/dashboard')
+      // Check if user is verified
+      const user = await account.get();
+      if (!user.emailVerification) {
+        await account.createVerification({
+          url: typeof window !== 'undefined' ? window.location.origin + '/verify' : 'http://localhost:3000/verify'
+        });
+        toast.info('Please verify your email. A verification link has been sent.');
+        router.push('/verify');
+        return;
+      }
+      router.push('/dashboard');
     } catch (err: any) {
       console.error(err)
     }
@@ -81,6 +91,7 @@ export default function LoginPage() {
       console.error(err)
     }
   }
+
 
   return (
     <>
@@ -139,8 +150,8 @@ export default function LoginPage() {
                 className="grow"
               />
             </label>
-
-            <label className="input input-bordered w-full mb-6 flex items-center gap-2">
+            <div className="w-full mb-4 flex flex-col">
+            <label className="input input-bordered w-full mb-1 flex items-center gap-2">
               <TbPassword className="h-[1.2em] opacity-50" />
               <input
                 type="password"
@@ -150,7 +161,15 @@ export default function LoginPage() {
                 required
                 className="grow"
               />
+              
             </label>
+            <p className="text-sm text-gray-600 flex justify-end w-full mb-1">
+              Forgot your password?{' '}
+              <Link href="/reset-password" className="link link-primary">
+                Reset it
+              </Link>
+            </p>
+            </div>
 
             <button
               className="btn btn-primary w-full rounded-lg mb-4"

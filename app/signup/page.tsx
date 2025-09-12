@@ -1,5 +1,5 @@
 'use client'
-import { Client, Account, ID, OAuthProvider } from 'appwrite'
+import { Client, Account, ID, OAuthProvider, Query } from 'appwrite'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import useAppwriteUser from '@/hooks/useAppwriteUser'
 import LoadingScreen from '@/components/LoadingScreen'
 import Footer from '@/components/footer'
+import { databases } from '@/lib/appwrite'
 
 const client = new Client()
   .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
@@ -23,6 +24,7 @@ export default function SignupPage() {
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [loadingSignup, setLoadingSignup] = useState(false)
   const router = useRouter()
   const { user, loading } = useAppwriteUser()
 
@@ -50,12 +52,35 @@ export default function SignupPage() {
     }
     return true
   }
+  const checkEmailExists = async () => {
+    const query = [Query.equal('email', email)]
+    try {
+      const users = await databases.listDocuments(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE!,
+        process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION!,
+        query
+      )
+      if (users.total > 0) {
+        toast.error('Email already exists')
+        return false
+      }
+      return true
+    } catch (error) {
+      console.error(error)
+      toast.error('Failed to check if email exists')
+      return false
+    }
+  }
 
   const handleSignup = async () => {
     try {
       setError('')
+      setSuccess(false)
       if (!validateForm()) return
+      if (!(await checkEmailExists())) return
 
+  setSuccess(false)
+  setLoadingSignup(true)
       const promise = account.create(ID.unique(), email, password, name)
 
       toast.promise(promise, {
@@ -71,8 +96,10 @@ export default function SignupPage() {
       })
 
       await promise
+  setLoadingSignup(false)
       router.push('/dashboard')
     } catch (err: any) {
+  setLoadingSignup(false)
       setError(err.message || 'Signup failed')
     }
   }
@@ -106,8 +133,17 @@ export default function SignupPage() {
         transition={Bounce}
       />
       <Header />
-      <div className="min-h-screen flex items-center justify-center bg-base-300 px-4">
-        <div className="bg-base-200 rounded-2xl shadow-xl flex flex-col py-8 md:flex-row items-center w-full max-w-5xl overflow-hidden">
+      <div className="min-h-screen flex items-center justify-center bg-base-300 px-4 relative">
+        {/* Loading Overlay */}
+        {loadingSignup && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm">
+            <div className="flex flex-col items-center">
+              <span className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary mb-4"></span>
+              <span className="text-xl text-primary font-bold animate-pulse">Creating your account...</span>
+            </div>
+          </div>
+        )}
+        <div className={`bg-base-200 rounded-2xl shadow-xl flex flex-col py-8 md:flex-row items-center w-full max-w-5xl overflow-hidden ${loadingSignup ? 'blur-sm pointer-events-none select-none' : ''}`}>
 
           {/* Image */}
           <div className="hidden md:flex md:w-1/2 justify-center items-center p-6">
@@ -132,6 +168,7 @@ export default function SignupPage() {
             <button
               className="btn bg-base-100 rounded-lg border border-neutral w-full flex items-center gap-2 mb-4 hover:bg-base-200"
               onClick={handleGoogleSignup}
+              disabled={loading}
             >
               <svg aria-label="Google logo" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
                 <g>
@@ -155,6 +192,7 @@ export default function SignupPage() {
                 onChange={(e) => setName(e.target.value)}
                 required
                 className="grow"
+                disabled={loadingSignup}
               />
             </label>
 
@@ -166,6 +204,7 @@ export default function SignupPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="grow"
+                disabled={loadingSignup}
               />
             </label>
 
@@ -177,12 +216,14 @@ export default function SignupPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="grow"
+                disabled={loadingSignup}
               />
             </label>
 
             <button
               className="btn btn-primary w-full rounded-lg mb-4"
               onClick={handleSignup}
+              disabled={loadingSignup}
             >
               Sign up
             </button>

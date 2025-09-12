@@ -5,6 +5,20 @@ import { useExpenses } from "@/lib/useExpenses"
 import { PlusCircle, Trash2, Edit3, Save, X } from "lucide-react"
 
 export default function Expenses({ user }: { user: any }) {
+  // Premium badge and feature
+  const isPremium = user?.isPremium && (!user?.premiumUntil || new Date(user.premiumUntil) > new Date())
+
+  const handleExport = () => {
+    // Example export logic (CSV)
+    const csv = expenses.map(exp => `${exp.name},${exp.price},${exp.info || ''},${exp.date || ''}`).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'expenses.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
   const {
     expenses,
     usersMap,
@@ -166,12 +180,28 @@ export default function Expenses({ user }: { user: any }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 ">
+      {/* Premium badge */}
+     
+      {/* Premium-only export button */}
+      <div style={{ marginBottom: 16 }}>
+        {isPremium ? (
+          <button onClick={handleExport} className="export-btn bg-gradient-to-r from-yellow-400 to-yellow-600 text-white px-4 py-2 rounded-lg font-semibold shadow-md">
+            Export Expenses (CSV)
+          </button>
+        ) : (
+          <div style={{ color: 'gray' }}>
+            Upgrade to premium to export expenses
+          </div>
+        )}
+      </div>
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-4xl font-bold text-slate-800 mb-2">Household Expenses</h1>
           <p className="text-slate-600">Track and split expenses with your household</p>
         </div>
+
+
 
         {/* Summary */}
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
@@ -450,7 +480,7 @@ export default function Expenses({ user }: { user: any }) {
                 </div>
               ))}
             </div>
-          )}
+          )}    
         </div>
       </div>
     </div>
