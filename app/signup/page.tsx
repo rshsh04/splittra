@@ -79,9 +79,10 @@ export default function SignupPage() {
       if (!validateForm()) return
       if (!(await checkEmailExists())) return
 
-  setSuccess(false)
-  setLoadingSignup(true)
-      const promise = account.create(ID.unique(), email, password, name)
+      setSuccess(false)
+      setLoadingSignup(true)
+      const userId = ID.unique();
+      const promise = account.create(userId, email, password, name)
 
       toast.promise(promise, {
         pending: 'Creating your account...',
@@ -96,10 +97,23 @@ export default function SignupPage() {
       })
 
       await promise
-  setLoadingSignup(false)
+      // Grant 14-day premium trial
+      await databases.createDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE!,
+        process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION!,
+        userId,
+        {
+          name,
+          email,
+          householdId: null,
+          isPremium: true,
+          premiumUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        }
+      )
+      setLoadingSignup(false)
       router.push('/dashboard')
     } catch (err: any) {
-  setLoadingSignup(false)
+      setLoadingSignup(false)
       setError(err.message || 'Signup failed')
     }
   }
@@ -111,6 +125,7 @@ export default function SignupPage() {
         success: 'http://localhost:3000/dashboard',
         failure: 'http://localhost:3000/signup'
       })
+      // The user document creation and premium trial logic should be handled in useAppwriteUser after OAuth login
     } catch (err) {
       console.error(err)
     }
@@ -152,7 +167,32 @@ export default function SignupPage() {
 
           {/* Signup Form */}
           <div className="flex flex-col justify-center items-center w-full md:w-1/2 p-8">
-            <h2 className="text-2xl font-bold mb-6 text-center">Create an Account ✨</h2>
+            <h2 className="text-2xl font-bold mb-2 text-center">Create an Account ✨</h2>
+            <div className="relative overflow-hidden bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100 border-2 border-yellow-300 rounded-2xl px-4 py-4 mb-6 flex flex-col items-center shadow-lg">
+              {/* Animated background glow */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-200/20 to-transparent animate-pulse rounded-2xl"></div>
+
+              {/* Decorative sparkles */}
+              <div className="absolute top-3 left-4 w-2 h-2 bg-yellow-400 rounded-full animate-ping"></div>
+              <div className="absolute top-6 right-6 w-1.5 h-1.5 bg-amber-400 rounded-full animate-bounce"></div>
+              <div className="absolute bottom-4 left-8 w-1 h-1 bg-yellow-500 rounded-full animate-pulse"></div>
+
+              {/* Content with enhanced styling */}
+              <div className="relative z-10 flex flex-col items-center">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-yellow-600 to-amber-700 font-bold text-lg drop-shadow-sm">
+                  Get 14 days Premium FREE!
+                </span>
+                <span className="text-yellow-700 text-sm font-medium">
+                  No credit card required.
+                </span>
+                <span className="text-yellow-700 text-sm font-medium">
+                  Enjoy all premium features during your trial.
+                </span>
+              </div>
+
+              {/* Subtle border glow effect */}
+              <div className="absolute inset-0 rounded-2xl border border-yellow-300/30 shadow-inner"></div>
+            </div>
 
             {error && <p className="text-red-500 mb-3">{error}</p>}
             {success && (

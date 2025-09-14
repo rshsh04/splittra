@@ -21,7 +21,7 @@ export default function HomeComponent({ user }: { user: any }) {
       </div>
     )
   }
-  const [pendingRemoveId, setPendingRemoveId] = useState<string|null>(null)
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [householdMembers, setHouseholdMembers] = useState<any[]>([])
   const [householdOwnerId, setHouseholdOwnerId] = useState<string>("")
   const [showHouseholdDropdown, setShowHouseholdDropdown] = useState(false)
@@ -236,20 +236,24 @@ export default function HomeComponent({ user }: { user: any }) {
         uploadedFile.$id
       )
 
-      setProfileData(prev => ({ ...prev, profilePicture: fileUrl }))
-
-      // Delete old profile picture if it exists
+      // Delete old profile picture if it exists and extract fileId correctly
       if (user.profilePicture && user.profilePicture.includes('/storage/buckets/')) {
         try {
-          const oldFileId = user.profilePicture.split('/').pop()
-          await storage.deleteFile(
-            process.env.NEXT_PUBLIC_APPWRITE_PP_BUCKET!,
-            oldFileId
-          )
+          // Extract fileId from Appwrite file URL
+          const match = user.profilePicture.match(/\/buckets\/[^\/]+\/files\/([^\/]+)/)
+          const oldFileId = match ? match[1] : null
+          if (oldFileId) {
+            await storage.deleteFile(
+              process.env.NEXT_PUBLIC_APPWRITE_PP_BUCKET!,
+              oldFileId
+            )
+          }
         } catch (error) {
           console.error('Error deleting old profile picture:', error)
         }
       }
+
+      setProfileData(prev => ({ ...prev, profilePicture: fileUrl }))
     } catch (error) {
       console.error('Error uploading profile picture:', error)
       alert('Failed to upload profile picture. Please try again.')
@@ -280,7 +284,7 @@ export default function HomeComponent({ user }: { user: any }) {
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-slate-50 transition-all duration-300">
       <ToastContainer />
       {/* Navbar */}
-  <nav className="bg-white shadow-sm border-b border-slate-200 px-4 py-4 flex flex-row sm:flex-row items-center sm:px-20 justify-between transition-all duration-300 gap-4">
+      <nav className="bg-white shadow-sm border-b border-slate-200 px-4 py-4 flex flex-row sm:flex-row items-center sm:px-20 justify-between transition-all duration-300 gap-4">
         <div className="flex items-center gap-3">
           <div className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
             <Link href="/" className="flex items-center gap-2 transition-all duration-300 hover:scale-105">
@@ -643,9 +647,12 @@ export default function HomeComponent({ user }: { user: any }) {
                     <li>Priority support</li>
                     <li>Export reports</li>
                   </ul>
-                  <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-all transform hover:scale-105">
-                    Upgrade Now
-                  </button>
+                  <Link href="/upgrade" className="text-blue-600 hover:underline">
+
+                    <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-all transform hover:scale-105">
+                      Upgrade Now
+                    </button>
+                  </Link>
                 </div>
               </div>
             )}

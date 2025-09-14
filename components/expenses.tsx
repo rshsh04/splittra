@@ -1,10 +1,40 @@
 "use client"
 
 import { useState } from "react"
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
 import { useExpenses } from "@/lib/useExpenses"
 import { PlusCircle, Trash2, Edit3, Save, X } from "lucide-react"
+import { toast, ToastContainer } from "react-toastify"
+import jsPDF from "jspdf"
 
 export default function Expenses({ user }: { user: any }) {
+  // Pie chart for analytics
+  const AnalyticsDashboard = ({ expenses, usersMap }: any) => {
+    // Group expenses by user
+    const userTotals: Record<string, number> = {}
+    expenses.forEach((e: any) => {
+      const userName = usersMap[e.userId] || "Unknown"
+      userTotals[userName] = (userTotals[userName] || 0) + e.price
+    })
+    const data = Object.entries(userTotals).map(([name, value]) => ({ name, value }))
+    const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#A28EFF"]
+
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h3 className="text-lg font-bold mb-4">Expense Categories</h3>
+        <ResponsiveContainer width="100%" height={250}>
+          <PieChart>
+            <Pie data={data} dataKey="value" nameKey="name" outerRadius={80} fill="#8884d8" label>
+              {data.map((entry, index) => (
+                <Cell key={index} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    )
+  }
   // Premium badge and feature
   const isPremium = user?.isPremium && (!user?.premiumUntil || new Date(user.premiumUntil) > new Date())
 
@@ -18,6 +48,7 @@ export default function Expenses({ user }: { user: any }) {
     a.download = 'expenses.csv'
     a.click()
     URL.revokeObjectURL(url)
+    toast.success("Expenses exported as expenses.csv")
   }
   const {
     expenses,
@@ -69,7 +100,19 @@ export default function Expenses({ user }: { user: any }) {
     setLoanRecipient("")
     loadExpenses()
   }
-
+  const handleExportPDF = () => {
+    if (!expenses.length) return
+    const doc = new jsPDF()
+    doc.text("Household Expenses", 14, 20)
+    let y = 30
+    expenses.forEach(exp => {
+      doc.text(`${exp.name} - $${exp.price} - ${exp.info || ''}`, 14, y)
+      y += 10
+    })
+    doc.save("expenses.pdf")
+    toast.success("Expenses exported as expenses.pdf")
+  }
+  
   // Edit expense
   const handleEditExpense = (exp: any) => {
     if (exp.userId !== user.$id) return
@@ -177,24 +220,44 @@ export default function Expenses({ user }: { user: any }) {
   }
 
   const { balances, message, totalRegular, totalLoans } = calculateBalances()
+  
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 ">
+  <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 ">
       {/* Premium badge */}
-     
+      <ToastContainer
+        position="top-center"
+        autoClose={5000}
+      />
       {/* Premium-only export button */}
       <div style={{ marginBottom: 16 }}>
+
         {isPremium ? (
-          <button onClick={handleExport} className="export-btn bg-gradient-to-r from-yellow-400 to-yellow-600 text-white px-4 py-2 rounded-lg font-semibold shadow-md">
-            Export Expenses (CSV)
-          </button>
-        ) : (
-          <div style={{ color: 'gray' }}>
-            Upgrade to premium to export expenses
+          <div className="flex gap-3">
+            <button
+              onClick={handleExport}
+              className="bg-yellow-400 hover:bg-yellow-500 text-white px-4 py-2 rounded-xl font-semibold"
+            >
+              Export CSV
+            </button>
+            <button
+              onClick={handleExportPDF}
+              className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-xl font-semibold"
+            >
+              Export PDF
+            </button>
           </div>
-        )}
+        ) : (
+          <div className="text-center p-4 mb-12 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 font-medium">
+            Upgrade to Premium to unlock export feature! 🚀
+          </div>
+        ) }
+
+
       </div>
       <div className="max-w-4xl mx-auto space-y-8">
+  {/* Analytics Pie Chart */}
+ 
         {/* Header */}
         <div className="text-center">
           <h1 className="text-4xl font-bold text-slate-800 mb-2">Household Expenses</h1>
@@ -208,7 +271,7 @@ export default function Expenses({ user }: { user: any }) {
           <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl p-6 mb-6 text-center">
             <p className="font-medium text-lg">{message}</p>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
             <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 text-center border border-green-200">
               <div className="text-3xl font-bold text-green-700 mb-1">${totalRegular.toFixed(2)}</div>
@@ -237,13 +300,12 @@ export default function Expenses({ user }: { user: any }) {
                     </p>
                   </div>
                   <div
-                    className={`font-bold text-lg px-4 py-2 rounded-full ${
-                      b.finalBalance > 0.01
-                        ? "bg-green-100 text-green-800 border border-green-200"
-                        : b.finalBalance < -0.01
+                    className={`font-bold text-lg px-4 py-2 rounded-full ${b.finalBalance > 0.01
+                      ? "bg-green-100 text-green-800 border border-green-200"
+                      : b.finalBalance < -0.01
                         ? "bg-red-100 text-red-800 border border-red-200"
                         : "bg-slate-100 text-slate-600 border border-slate-200"
-                    }`}
+                      }`}
                   >
                     {b.finalBalance > 0.01 ? "+" : ""}${b.finalBalance.toFixed(2)}
                   </div>
@@ -280,7 +342,11 @@ export default function Expenses({ user }: { user: any }) {
             </div>
           </div>
         </div>
-
+              {isPremium?(
+        <AnalyticsDashboard expenses={expenses} usersMap={usersMap} />
+              ) : <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 font-medium">
+                Upgrade to Premium to unlock analytics feature! 🚀
+              </div>}
         {/* Add Expense */}
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
           <h2 className="text-2xl font-bold text-slate-800 mb-6">Add New Expense</h2>
@@ -480,7 +546,7 @@ export default function Expenses({ user }: { user: any }) {
                 </div>
               ))}
             </div>
-          )}    
+          )}
         </div>
       </div>
     </div>
