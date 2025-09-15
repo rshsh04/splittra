@@ -8,15 +8,16 @@ export async function POST(req: NextRequest) {
 
   try {
     const origin = req.headers.get('origin') || '';
-    const { coupon } = await req.json();
+    const { coupon, userId, email } = await req.json();
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
-          price: 'price_1S6GqPGtQVm3XDhSzMghTEWT',
+          price: 'price_1S7O1fGUKaK460WZqxrbK8Gv',
           quantity: 1,
         },
       ],
+      customer_email: email || undefined,
       subscription_data: {
         trial_settings: {
           end_behavior: {
@@ -24,13 +25,15 @@ export async function POST(req: NextRequest) {
           },
         },
         trial_period_days: 14,
+        metadata: {
+          userId: userId || '',
+        },
       },
-      payment_method_collection: 'if_required',
       mode: 'subscription',
       success_url: `${origin}/dashboard?success=true`,
       cancel_url: `${origin}/upgrade?canceled=true`,
       allow_promotion_codes: true,
-      discounts: coupon ? [{ coupon }] : undefined,
+      discounts: coupon ? [{ coupon }] : [],
     });
     return Response.json({ id: session.id });
   } catch (error) {

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react"
 import { Query } from "appwrite"
 import { account, databases, storage, ID } from "@/lib/appwrite"
 import Expenses from "./expenses"
-import { ChevronDown, Settings, LogOut, Users, Edit2, Check, X, User, Mail, Camera, Save, Crown } from "lucide-react"
+import { ChevronDown, Settings, LogOut, Users, Edit2, Check, X, User, Mail, Camera, Save, Crown, CreditCard } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { ToastContainer, toast } from 'react-toastify'
@@ -68,8 +68,8 @@ export default function HomeComponent({ user }: { user: any }) {
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
   const [showPremiumModal, setShowPremiumModal] = useState(false)
 
-  const isPremium = user?.isPremium || false
   const premiumUntil = user?.premiumUntil ? new Date(user.premiumUntil) : null
+  const hasPremium = premiumUntil && premiumUntil > new Date();
 
   const householdRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
@@ -428,7 +428,7 @@ export default function HomeComponent({ user }: { user: any }) {
               className="flex items-center gap-2 hover:opacity-80 transition-all duration-300 hover:scale-105 hover:shadow rounded-full px-2 py-1 sm:px-4 sm:py-2 text-sm sm:text-base"
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
             >
-              {isPremium && (
+              {hasPremium && (
                 <div style={{ color: 'gold', fontWeight: 'bold', marginBottom: 8 }} className="border border-yellow-400 px-2 py-1 mt-2 rounded-full bg-yellow-50 text-xs animate-pulse">
                   ★ Premium User
                 </div>
@@ -465,12 +465,22 @@ export default function HomeComponent({ user }: { user: any }) {
                   <Settings className="w-4 h-4 transition-transform duration-300 hover:rotate-90" />
                   Account Settings
                 </button>
+                <Link href="/billing">
+                  <button
+                    className="w-full text-left px-4 py-3 text-sm hover:bg-slate-50 text-slate-700 flex items-center gap-3 transition-all duration-300 hover:translate-x-1"
+                  >
+                    <CreditCard className="w-4 h-4 text-purple-500 transition-transform duration-300 hover:rotate-90" />
+                    Billing
+                  </button>
+                </Link>
+
+                
                 <button
                   className="w-full text-left px-4 py-3 text-sm hover:bg-slate-50 text-slate-700 flex items-center gap-3 transition-all duration-300 hover:translate-x-1"
                   onClick={() => setShowPremiumModal(true)}
                 >
                   <Crown className="w-4 h-4 text-yellow-500" />
-                  {isPremium ? `Premium (Until ${premiumUntil?.toLocaleDateString()})` : 'Upgrade to Premium'}
+                  {hasPremium ? `Premium (Until ${premiumUntil?.toLocaleDateString()})` : 'Upgrade to Premium'}
                 </button>
               </div>
               <div className="border-t border-slate-200">
@@ -619,7 +629,7 @@ export default function HomeComponent({ user }: { user: any }) {
 
           {/* Modal Content */}
           <div className="p-6">
-            {isPremium ? (
+            {hasPremium ? (
               <div>
                 <p className="text-lg text-gray-700 mb-4">
                   Your premium subscription is active until {premiumUntil?.toLocaleDateString()}.

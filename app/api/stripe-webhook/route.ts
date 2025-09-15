@@ -1,10 +1,20 @@
-import Stripe from 'stripe';
-import { NextRequest } from 'next/server';
+import Stripe from "stripe";
+import { NextRequest } from "next/server";
+import { Client, Databases, Query } from "node-appwrite";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-08-27.basil' });
+const client = new Client()
+  .setEndpoint(process.env.APPWRITE_ENDPOINT!)
+  .setProject(process.env.APPWRITE_PROJECT_ID!)
+  .setKey(process.env.APPWRITE_KEY!);
+
+const databases = new Databases(client);
+
+export const runtime = "nodejs";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(req: NextRequest) {
-  const sig = req.headers.get('stripe-signature');
+  const sig = req.headers.get("stripe-signature");
   const buf = await req.arrayBuffer();
   const rawBody = Buffer.from(buf);
 
@@ -16,70 +26,73 @@ export async function POST(req: NextRequest) {
       process.env.STRIPE_WEBHOOK_SECRET!
     );
   } catch (err) {
-    return new Response('Webhook Error', { status: 400 });
+    console.error("Stripe signature verification failed", err);
+    return new Response("Webhook Error", { status: 400 });
   }
 
-  // Handle the event
   switch (event.type) {
-    case 'checkout.session.completed': {
-      console.log('Checkout session completed:', event.data.object);
-      // Extract user email from Stripe session
+    case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
-      const email = session.customer_details?.email || session.customer_email;
+      const email = session.customer_details?.email;
 
-      // Determine premium duration
       let premiumDays = 30;
-      // Stripe Checkout Session does not have trial_end, need to fetch subscription if present
-      if (session.mode === 'subscription' && session.subscription) {
+      let subscriptionId = session.subscription as string;
+
+      // Check trial period
+      if (session.mode === "subscription" && subscriptionId) {
         try {
-          const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-          if (subscription.trial_end && subscription.trial_end > Math.floor(Date.now() / 1000)) {
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          if (
+            subscription.trial_end &&
+            subscription.trial_end > Math.floor(Date.now() / 1000)
+          ) {
             premiumDays = 14;
           }
         } catch (err) {
-          console.error('Error fetching Stripe subscription:', err);
+          console.error("Error fetching subscription", err);
         }
       }
 
-      // Calculate expiration date
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + premiumDays);
 
-      // Update user in Appwrite users collection
-      // (Assuming you have Appwrite client setup in lib/appwrite.ts)
-      const { databases } = await import('@/lib/appwrite');
-      const USERS_COLLECTION_ID = 'users';
+      if (!email) {
+        console.error("No email found in Stripe session");
+        break;
+      }
+
       try {
-        // Query user by email
         const userQuery = await databases.listDocuments(
-          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
-          USERS_COLLECTION_ID,
-          [
-            // Appwrite Query.equal
-            `email=${email}`
-          ]
+          process.env.APPWRITE_DATABASE!,
+          process.env.APPWRITE_USERS_COLLECTION!,
+          [Query.equal("email", email)]
         );
-        if (userQuery.documents.length > 0) {
+
+        if (userQuery.documents.length === 0) {
+          console.error("No Appwrite user found with email:", email);
+        } else {
           const userId = userQuery.documents[0].$id;
+
           await databases.updateDocument(
-            process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
-            USERS_COLLECTION_ID,
-            userId,
+            process.env.APPWRITE_DATABASE!,
+            process.env.APPWRITE_USERS_COLLECTION!,
+            userId, // ✅ fixed
             {
-              isPremium: true,
-              premiumExpiresAt: expiresAt.toISOString(),
+              premiumUntil: expiresAt.toISOString(),
+              stripeSubscriptionId: subscriptionId,
             }
           );
+          console.log("✅ User upgraded to premium:", email);
         }
       } catch (err) {
-        console.error('Error updating user premium status:', err);
+        console.error("Error updating Appwrite user:", err);
       }
       break;
     }
     default:
-      // Unexpected event type
-      return new Response('Unhandled event type', { status: 400 });
+      console.warn("Unhandled event type:", event.type);
+      return new Response("Unhandled event type", { status: 400 });
   }
 
-  return new Response('Success', { status: 200 });
+  return new Response("Success", { status: 200 });
 }

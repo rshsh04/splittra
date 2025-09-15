@@ -106,7 +106,6 @@ export default function SignupPage() {
           name,
           email,
           householdId: null,
-          isPremium: true,
           premiumUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         }
       )

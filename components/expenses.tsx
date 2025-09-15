@@ -36,7 +36,7 @@ export default function Expenses({ user }: { user: any }) {
     )
   }
   // Premium badge and feature
-  const isPremium = user?.isPremium && (!user?.premiumUntil || new Date(user.premiumUntil) > new Date())
+  const hasPremium = user?.premiumUntil && new Date(user.premiumUntil) > new Date();
 
   const handleExport = () => {
     // Example export logic (CSV)
@@ -232,7 +232,7 @@ export default function Expenses({ user }: { user: any }) {
       {/* Premium-only export button */}
       <div style={{ marginBottom: 16 }}>
 
-        {isPremium ? (
+  {hasPremium ? (
           <div className="flex gap-3">
             <button
               onClick={handleExport}
@@ -342,7 +342,7 @@ export default function Expenses({ user }: { user: any }) {
             </div>
           </div>
         </div>
-              {isPremium?(
+              {hasPremium?(
         <AnalyticsDashboard expenses={expenses} usersMap={usersMap} />
               ) : <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 font-medium">
                 Upgrade to Premium to unlock analytics feature! 🚀

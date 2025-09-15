@@ -47,21 +47,25 @@ const benefits = [
 ];
 
 export default function UpgradePage() {
-	// Import toast and router
-	const { user } = require('@/hooks/useAppwriteUser').default();
+	// Import toast, router, and user
 	const { toast } = require('react-toastify');
 	const { useRouter } = require('next/navigation');
+	const { user, loading } = require('@/hooks/useAppwriteUser').default();
 	const router = useRouter();
 
 	const handleUpgrade = async () => {
 	
+		if (loading) return;
+		if (!user) {
+			toast.error("You must be logged in to upgrade.");
+			return;
+		}
 		try {
 			const res = await fetch('/api/create-checkout-session', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({})
+				body: JSON.stringify({ email: user.email })
 			});
-      console.log(res)
 			const data = await res.json();
 			if (!data.id) {
 				toast.error(data.error || "Unable to create Stripe session.");
