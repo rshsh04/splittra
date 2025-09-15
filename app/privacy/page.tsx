@@ -12,7 +12,7 @@ export default function PrivacyPage() {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold text-gray-800">1. Introduction</h2>
             <p>
-              Welcome to Splittra. We respect your privacy and are committed to protecting your personal data. 
+              Welcome to SplitIt. We respect your privacy and are committed to protecting your personal data. 
               This privacy policy explains how we collect, use, and safeguard your information when you use our 
               expense-sharing platform.
             </p>

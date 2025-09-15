@@ -25,7 +25,7 @@ export default function ResetPasswordPage() {
     try {
       await account.createRecovery({
         email,
-        url: typeof window !== 'undefined' ? window.location.origin + '/recovery' : 'http://splittra.se:3000/recovery'
+        url: typeof window !== 'undefined' ? window.location.origin + '/recovery' : 'http://localhost:3000/recovery'
         
       })
       toast.success('Password reset link sent to your email')

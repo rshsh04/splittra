@@ -121,8 +121,8 @@ export default function SignupPage() {
     try {
       await account.createOAuth2Session({
         provider: OAuthProvider.Google,
-        success: 'https://splittra.se/dashboard?success=true',
-        failure: 'https://splittra.se/signup?error=google'
+        success: 'http://localhost:3000/dashboard',
+        failure: 'http://localhost:3000/signup'
       })
       // The user document creation and premium trial logic should be handled in useAppwriteUser after OAuth login
     } catch (err) {

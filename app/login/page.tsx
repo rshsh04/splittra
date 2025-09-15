@@ -68,7 +68,7 @@ export default function LoginPage() {
       const user = await account.get();
       if (!user.emailVerification) {
         await account.createVerification({
-          url: typeof window !== 'undefined' ? window.location.origin + '/verify' : 'https://splittra.se/verify'
+          url: typeof window !== 'undefined' ? window.location.origin + '/verify' : 'http://localhost:3000/verify'
         });
         toast.info('Please verify your email. A verification link has been sent.');
         router.push('/verify');
@@ -84,8 +84,8 @@ export default function LoginPage() {
     try {
       await account.createOAuth2Session({
         provider: OAuthProvider.Google,
-        success: 'https://splittra.se/dashboard',
-        failure: 'https://splittra.se/login'
+        success: 'http://localhost:3000/dashboard',
+        failure: 'http://localhost:3000/login'
       })
     } catch (err) {
       console.error(err)
