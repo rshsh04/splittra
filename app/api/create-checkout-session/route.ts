@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       payment_method_types: ['card'],
       line_items: [
         {
-          price: 'price_1S7O1fGUKaK460WZqxrbK8Gv',
+          price: 'price_1S6GqPGtQVm3XDhSzMghTEWT',
           quantity: 1,
         },
       ],
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
         },
       },
       mode: 'subscription',
+      payment_method_collection: 'if_required',
       success_url: `${origin}/dashboard?success=true`,
       cancel_url: `${origin}/upgrade?canceled=true`,
       allow_promotion_codes: true,

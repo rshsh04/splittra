@@ -1,13 +1,22 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import HouseholdSetup from "@/components/householdsetup";
 import useAppwriteUser from "@/hooks/useAppwriteUser";
 import HomeComponent from "@/components/homecomponent";
 import LoadingScreen from "@/components/LoadingScreen";
+import { toast } from "react-toastify";
 
-export default function Home() {
+function DashboardContent() {
   const { user, loading } = useAppwriteUser();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("success") === "true") {
+      toast.success("Payment successful! You are now premium.");
+    }
+  }, [searchParams]);
 
   if (loading) {
     return <LoadingScreen />;
@@ -23,3 +32,12 @@ export default function Home() {
     </ProtectedRoute>
   );
 }
+
+export default function dashboard() {
+  return (
+    <Suspense>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
