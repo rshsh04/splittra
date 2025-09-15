@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { Account, Client } from 'appwrite'
 import { Bounce, ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -13,7 +13,7 @@ const client = new Client()
 
 const account = new Account(client)
 
-export default function RecoveryPage() {
+function RecoveryPageInner() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -49,7 +49,8 @@ export default function RecoveryPage() {
 
   return (
     <>
-      <ToastContainer
+
+        <ToastContainer
         position="top-right"
         autoClose={5000}
         limit={3}
@@ -112,5 +113,13 @@ export default function RecoveryPage() {
       </div>
       <Footer />
     </>
+  )
+}
+
+export default function RecoveryPage() {
+  return (
+    <Suspense>
+      <RecoveryPageInner />
+    </Suspense>
   )
 }
