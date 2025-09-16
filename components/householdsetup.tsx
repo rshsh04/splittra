@@ -1,6 +1,7 @@
 'use client'
 import { ReactNode, useState } from 'react'
-import { databases, ID, Query, account } from '@/lib/appwrite'
+import useSupabaseUser from '@/hooks/useSupabaseUser';
+import { createClient } from '@/lib/supabase/client';
 import { Home, Users, Copy, Plus, LogOut } from 'lucide-react'
 import Header from './header';
 
@@ -15,44 +16,39 @@ export default function HouseholdSetup({ user, children }: { user: any; children
     setIsCreating(true)
     try {
       if (!user) return
-      
+      const supabase = createClient();
       // Check if user already has a household
-      const existing = await databases.listDocuments({
-        databaseId: process.env.NEXT_PUBLIC_APPWRITE_DATABASE!,
-        collectionId: process.env.NEXT_PUBLIC_APPWRITE_HOUSEHOLDS_COLLECTION!,
-        queries: [Query.equal('ownerId', [user.$id])]
-      })
-      
-      if (existing.documents.length > 0) {
-        const household = existing.documents[0]
-        setInviteCode(household.code)
+      const { data: existing, error: existingErr } = await supabase
+        .from('household')
+        .select('*')
+        .eq('owner_id', user.id)
+        .limit(1);
+      if (existingErr) throw existingErr;
+      if (existing && existing.length > 0) {
+        setInviteCode(existing[0].code)
         return
       }
-
       // Create new household
-      const code = Math.random().toString(36).substring(2, 7).toUpperCase()
-      const household = await databases.createDocument({
-        databaseId: process.env.NEXT_PUBLIC_APPWRITE_DATABASE!,
-        collectionId: process.env.NEXT_PUBLIC_APPWRITE_HOUSEHOLDS_COLLECTION!,
-        documentId: ID.unique(),
-        data: { 
-          code, 
-          ownerId: user.$id, 
-          members: [user.$id],
+      const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+      const { data: household, error: createErr } = await supabase
+        .from('household')
+        .insert({
+          code,
+          owner_id: user.id,
+          members: [user.id],
           householdName: `${user.name}'s Household`
-        }
-      })
-      
-      await databases.updateDocument({
-        databaseId: process.env.NEXT_PUBLIC_APPWRITE_DATABASE!,
-        collectionId: process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION!,
-        documentId: user.$id,
-        data: { householdId: household.$id }
-      })
-      
+        })
+        .select()
+        .maybeSingle();
+      if (createErr) throw createErr;
+      // Update user row with household_id
+      const { error: userErr } = await supabase
+        .from('users')
+        .update({ householdId: household.id })
+        .eq('id', user.id);
+      if (userErr) throw userErr;
       setInviteCode(household.code)
     } catch (err: any) {
-      console.error('Error creating household:', err)
       alert(`Failed to create household: ${err.message || err}`)
     } finally {
       setIsCreating(false)
@@ -64,50 +60,43 @@ export default function HouseholdSetup({ user, children }: { user: any; children
       alert('Please enter an invite code.')
       return
     }
-    
-    if (user.householdId) {
+    if (user.household_id) {
       alert('You are already in a household!')
       return
     }
-
     setIsJoining(true)
     try {
-      const result = await databases.listDocuments({
-        databaseId: process.env.NEXT_PUBLIC_APPWRITE_DATABASE!,
-        collectionId: process.env.NEXT_PUBLIC_APPWRITE_HOUSEHOLDS_COLLECTION!,
-        queries: [Query.equal('code', [friendCode.toUpperCase()])]
-      })
-      
-      if (result.documents.length === 0) {
+      const supabase = createClient();
+      const { data: result, error: findErr } = await supabase
+        .from('household')
+        .select('*')
+        .eq('code', friendCode.toUpperCase())
+        .limit(1);
+      if (findErr) throw findErr;
+      if (!result || result.length === 0) {
         alert('Invalid invite code. Please check and try again.')
         return
       }
-      
-      const household = result.documents[0]
-      
+      const household = result[0];
       // Check if user is already a member
-      if (household.members.includes(user.$id)) {
+      if (household.members.includes(user.id)) {
         alert('You are already a member of this household!')
         return
       }
-      
-      const updatedHousehold = await databases.updateDocument({
-        databaseId: process.env.NEXT_PUBLIC_APPWRITE_DATABASE!,
-        collectionId: process.env.NEXT_PUBLIC_APPWRITE_HOUSEHOLDS_COLLECTION!,
-        documentId: household.$id,
-        data: { members: [...household.members, user.$id] }
-      })
-      
-      await databases.updateDocument({
-        databaseId: process.env.NEXT_PUBLIC_APPWRITE_DATABASE!,
-        collectionId: process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION!,
-        documentId: user.$id,
-        data: { householdId: updatedHousehold.$id }
-      })
-      
+      // Add user to members array
+      const { error: updErr } = await supabase
+        .from('household')
+        .update({ members: [...household.members, user.id] })
+        .eq('id', household.id);
+      if (updErr) throw updErr;
+      // Update user row with household_id (we already have household.id)
+      const { error: userErr } = await supabase
+        .from('users')
+        .update({ householdId: household.id })
+        .eq('id', user.id);
+      if (userErr) throw userErr;
       window.location.reload()
     } catch (err: any) {
-      console.error('Error joining household:', err)
       alert(err.message || 'Failed to join household.')
     } finally {
       setIsJoining(false)
@@ -124,11 +113,10 @@ export default function HouseholdSetup({ user, children }: { user: any; children
 
   const handleLogout = async () => {
     try {
-      await account.deleteSession('current')
+      const supabase = createClient()
+      await supabase.auth.signOut()
       window.location.reload()
-    } catch (error) {
-      console.error('Error logging out:', error)
-    }
+    } catch (error) {}
   }
 
   return (

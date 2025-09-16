@@ -2,12 +2,12 @@
 import { useState } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import HouseholdSetup from "@/components/householdsetup";
-import useAppwriteUser from "@/hooks/useAppwriteUser";
+import useSupabaseUser from "@/hooks/useSupabaseUser";
 import HomeComponent from "@/components/homecomponent";
 import LoadingScreen from "@/components/LoadingScreen";
 
 export default function Home() {
-  const { user, loading } = useAppwriteUser();
+  const { user, loading } = useSupabaseUser();
 
   if (loading) {
     return <LoadingScreen />;

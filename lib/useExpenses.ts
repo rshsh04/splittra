@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { client, databases } from "@/lib/appwrite"
+import { createClient } from "@/lib/supabase/client"
 import {
   fetchExpenses,
   fetchUsers,
@@ -14,44 +14,63 @@ import {
 export function useExpenses(user: any) {
   const [expenses, setExpenses] = useState<any[]>([])
   const [usersMap, setUsersMap] = useState<{ [key: string]: string }>({})
+  const supabase = createClient()
 
   // Load expenses
-const loadExpenses = async () => {
-  if (!user?.householdId) return
+  const loadExpenses = async () => {
+    const householdId = user?.household_id ?? user?.householdId
+    if (!householdId) return
 
-  // 1. Load expenses
-  const res = await fetchExpenses(user.householdId)
-  setExpenses(res.documents)
+    // 1. Load expenses
+    const res = await fetchExpenses(householdId)
+    setExpenses(res)
 
-  // 2. Fetch household document to get all members
-  const householdRes = await databases.getDocument(
-    process.env.NEXT_PUBLIC_APPWRITE_DATABASE!,
-    process.env.NEXT_PUBLIC_APPWRITE_HOUSEHOLDS_COLLECTION!,
-    user.householdId
-  )
+    // 2. Fetch household to get members
+    const { data: household, error: householdError } = await supabase
+      .from('household')
+      .select('members')
+      .eq('id', householdId)
+      .maybeSingle()
 
-  const memberIds: string[] = householdRes.members || []
+    if (householdError || !household) return
+    const memberIds: number[] = household.members || []
 
-  // 3. Fetch all users in the household
-  if (memberIds.length > 0) {
-    const usersRes = await fetchUsers(memberIds)
-    const map: { [key: string]: string } = {}
-    usersRes.documents.forEach((u: any) => (map[u.$id] = u.name || u.email))
-    setUsersMap(map)
+    // 3. Fetch all users in the household
+    if (memberIds.length > 0) {
+      const usersRes = await fetchUsers(memberIds)
+      const map: { [key: string]: string } = {}
+      usersRes.forEach((u: any) => {
+        map[u.id] = u.name || u.email
+      })
+      setUsersMap(map)
+    }
   }
-}
-
 
   useEffect(() => {
-    if (!user?.householdId) return
+    const householdId = user?.household_id ?? user?.householdId
+    if (!householdId) return
     loadExpenses()
 
-    const unsubscribe = client.subscribe(
-      [`databases.${process.env.NEXT_PUBLIC_APPWRITE_DATABASE}.collections.${process.env.NEXT_PUBLIC_APPWRITE_EXPENSES_COLLECTION}.documents`],
-      () => loadExpenses()
-    )
+    // Realtime subscription for expenses changes
+    const channel = supabase
+      .channel(`expenses-changes-household-${householdId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'expenses',
+          filter: `householdId=eq.${householdId}`,
+        },
+        () => {
+          loadExpenses()
+        }
+      )
+      .subscribe()
 
-    return () => unsubscribe()
+    return () => {
+      try { channel.unsubscribe() } catch (e) {}
+    }
   }, [user?.householdId])
 
   return {

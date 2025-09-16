@@ -1,50 +1,67 @@
 "use client"
 
-import { databases, ID, Query } from "@/lib/appwrite"
+import { createClient } from '@/lib/supabase/client';
 
-const databaseId = process.env.NEXT_PUBLIC_APPWRITE_DATABASE!
-const expensesCollection = process.env.NEXT_PUBLIC_APPWRITE_EXPENSES_COLLECTION!
-const usersCollection = process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION!
-
-// Fetch expenses
-export async function fetchExpenses(householdId: string) {
-  return await databases.listDocuments(databaseId, expensesCollection, [
-    Query.equal("householdId", [householdId]),
-  ])
+// Fetch expenses by householdId
+export async function fetchExpenses(householdId: number | string) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('expenses')
+    .select('*')
+    .eq('householdId', householdId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
-// Fetch users
-export async function fetchUsers(userIds: string[]) {
-  if (!userIds || userIds.length === 0) return { documents: [] }
-
-  return await databases.listDocuments(
-    process.env.NEXT_PUBLIC_APPWRITE_DATABASE!,
-    process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION!,
-    [
-      Query.equal("$id", userIds)
-    ]
-  )
+// Fetch users by array of user ids
+export async function fetchUsers(userIds: Array<number | string>) {
+  if (!userIds || userIds.length === 0) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .in('id', userIds);
+  if (error) throw error;
+  return data || [];
 }
 
 // Add expense
 export async function addExpense(payload: any) {
-  return await databases.createDocument(databaseId, expensesCollection, ID.unique(), payload)
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('expenses')
+    .insert(payload);
+  if (error) throw error;
+  return data;
 }
 
 // Update expense
-export async function updateExpense(id: string, payload: any) {
-  return await databases.updateDocument(databaseId, expensesCollection, id, payload)
+export async function updateExpense(id: number | string, payload: any) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('expenses')
+    .update(payload)
+    .eq('id', id);
+  if (error) throw error;
+  return data;
 }
 
 // Delete expense
-export async function deleteExpense(id: string) {
-  return await databases.deleteDocument(databaseId, expensesCollection, id)
+export async function deleteExpense(id: number | string) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('expenses')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+  return data;
 }
 
 // Clear all household expenses
-export async function clearExpenses(householdId: string) {
-  const res = await fetchExpenses(householdId)
-  for (const exp of res.documents) {
-    await deleteExpense(exp.$id)
+export async function clearExpenses(householdId: number | string) {
+  const expenses = await fetchExpenses(householdId);
+  for (const exp of expenses) {
+    await deleteExpense(exp.id);
   }
 }

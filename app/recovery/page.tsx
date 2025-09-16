@@ -1,6 +1,6 @@
 'use client'
 import { useState, Suspense } from 'react'
-import { Account, Client } from 'appwrite'
+
 import { Bounce, ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import Header from '@/components/header'

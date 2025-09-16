@@ -1,7 +1,5 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
-import { Query } from "appwrite"
-import { account, databases, storage, ID } from "@/lib/appwrite"
 import Expenses from "./expenses"
 import { ChevronDown, Settings, LogOut, Users, Edit2, Check, X, User, Mail, Camera, Save, Crown, CreditCard } from "lucide-react"
 import Image from "next/image"
@@ -10,17 +8,7 @@ import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 
 export default function HomeComponent({ user }: { user: any }) {
-  if (!user?.householdId) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-green-50 to-slate-50">
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200 text-center">
-          <h2 className="text-2xl font-bold text-slate-800 mb-4">You are not part of any household</h2>
-          <p className="text-slate-600 mb-6">Join or create a household to start tracking expenses.</p>
-          <Link href="/" className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300">Go to Home</Link>
-        </div>
-      </div>
-    )
-  }
+
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [householdMembers, setHouseholdMembers] = useState<any[]>([])
   const [householdOwnerId, setHouseholdOwnerId] = useState<string>("")
@@ -29,30 +17,43 @@ export default function HomeComponent({ user }: { user: any }) {
   // Fetch household members and owner
   useEffect(() => {
     const fetchMembers = async () => {
-      if (!user?.householdId) return
+      const householdId = user?.household_id ?? user?.householdId
+      if (!householdId) return
       try {
-        const res = await databases.getDocument(databaseId, householdsCollection, user.householdId)
-        setHouseholdName(res.householdName || "Household")
-        setHouseholdCode(res.code || "")
-        setHouseholdOwnerId(res.ownerId || "")
+        const supabase = require('@/lib/supabase/client').createClient();
+        const { data: household, error: hhErr } = await supabase
+          .from('household')
+          .select('*')
+          .eq('id', householdId)
+          .maybeSingle();
+        if (hhErr) throw hhErr;
+        if (!household) {
+          setHouseholdName("Household")
+          setHouseholdCode("")
+          setHouseholdOwnerId("")
+          setHouseholdMembers([])
+          return
+        }
+        setHouseholdName(household.household_name || household.householdName || "Household")
+        setHouseholdCode(household.code || "")
+        setHouseholdOwnerId(household.owner_id ? household.owner_id.toString() : "")
         // Fetch member details
-        if (res.members && res.members.length > 0) {
-          // Correct Appwrite query usage
-          const usersRes = await databases.listDocuments(
-            databaseId,
-            usersCollection,
-            [Query.equal("$id", res.members)]
-          )
-          setHouseholdMembers(usersRes.documents)
+        if (household.members && household.members.length > 0) {
+          const { data: usersRes, error: usersErr } = await supabase
+            .from('users')
+            .select('*')
+            .in('id', household.members)
+          if (usersErr) throw usersErr;
+          setHouseholdMembers(usersRes || [])
         } else {
           setHouseholdMembers([])
         }
       } catch (err) {
-        console.error("Error fetching household members:", err)
+        // ...
       }
     }
     fetchMembers()
-  }, [user?.householdId, showHouseholdDropdown])
+  }, [user?.household_id, user?.householdId, showHouseholdDropdown])
   const [householdName, setHouseholdName] = useState("Household")
   const [householdCode, setHouseholdCode] = useState("")
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
@@ -65,6 +66,7 @@ export default function HomeComponent({ user }: { user: any }) {
     email: user?.email || "",
     profilePicture: user?.profilePicture || ""
   })
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
   const [showPremiumModal, setShowPremiumModal] = useState(false)
 
@@ -76,23 +78,28 @@ export default function HomeComponent({ user }: { user: any }) {
   const nameInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const databaseId = process.env.NEXT_PUBLIC_APPWRITE_DATABASE!
-  const householdsCollection = process.env.NEXT_PUBLIC_APPWRITE_HOUSEHOLDS_COLLECTION!
-  const usersCollection = process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION!
 
   useEffect(() => {
     const fetchHousehold = async () => {
-      if (!user?.householdId) return
+      const householdId = user?.household_id ?? user?.householdId
+      if (!householdId) return
       try {
-        const res = await databases.getDocument(databaseId, householdsCollection, user.householdId)
-        setHouseholdName(res.householdName || "Household")
-        setHouseholdCode(res.code || "")
+        const supabase = require('@/lib/supabase/client').createClient();
+        const { data: household, error: hhErr } = await supabase
+          .from('household')
+          .select('*')
+          .eq('id', householdId)
+          .maybeSingle();
+        if (hhErr) throw hhErr;
+        if (!household) return
+        setHouseholdName(household.household_name || household.householdName || "Household")
+        setHouseholdCode(household.code || "")
       } catch (err) {
-        console.error("Error fetching household:", err)
+        // ...
       }
     }
     fetchHousehold()
-  }, [user?.householdId])
+  }, [user?.household_id])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -128,25 +135,38 @@ export default function HomeComponent({ user }: { user: any }) {
   }, [showProfileModal, user])
 
   const handleLogout = async () => {
-    await account.deleteSession("current")
-    window.location.reload()
+    const supabase = require('@/lib/supabase/client').createClient();
+    await supabase.auth.signOut();
+    window.location.reload();
   }
 
   const handleLeaveHousehold = async () => {
-    if (!user?.householdId) return
-
-
+    if (!user?.household_id) return
     try {
-      const household = await databases.getDocument(databaseId, householdsCollection, user.householdId)
-      await databases.updateDocument(databaseId, householdsCollection, household.$id, {
-        members: household.members.filter((m: string) => m !== user.$id),
-      })
-      await databases.updateDocument(databaseId, usersCollection, user.$id, {
-        householdId: null
-      })
-      window.location.reload()
+      const supabase = require('@/lib/supabase/client').createClient();
+      // Fetch household
+      const { data: household, error: hhErr } = await supabase
+        .from('household')
+        .select('*')
+        .eq('id', user.household_id)
+        .maybeSingle();
+      if (hhErr) throw hhErr;
+      if (!household) throw new Error('Household not found')
+      // Remove user from members
+      const newMembers = (household.members || []).filter((m: any) => m !== user.id)
+      const { error: updErr } = await supabase
+        .from('household')
+        .update({ members: newMembers })
+        .eq('id', household.id);
+      if (updErr) throw updErr;
+      // Update user row
+      const { error: userErr } = await supabase
+        .from('users')
+        .update({ household_id: null })
+        .eq('id', user.id);
+      if (userErr) throw userErr;
+      window.location.reload();
     } catch (err) {
-      console.error("Error leaving household:", err)
       alert("Failed to leave household.")
     }
   }
@@ -168,9 +188,12 @@ export default function HomeComponent({ user }: { user: any }) {
     }
 
     try {
-      await databases.updateDocument(databaseId, householdsCollection, user.householdId, {
-        householdName: editNameValue.trim(),
-      })
+      const supabase = require('@/lib/supabase/client').createClient();
+      const { data, error } = await supabase
+        .from('household')
+        .update({ household_name: editNameValue.trim() })
+        .eq('id', user.household_id);
+      if (error) throw error;
       setHouseholdName(editNameValue.trim())
       setIsEditingName(false)
       setEditNameValue("")
@@ -221,59 +244,94 @@ export default function HomeComponent({ user }: { user: any }) {
   const handleProfileImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
-    try {
-      // Upload file to Appwrite Storage
-      const uploadedFile = await storage.createFile(
-        process.env.NEXT_PUBLIC_APPWRITE_PP_BUCKET!,
-        ID.unique(),
-        file
-      )
-
-      // Get the file view URL
-      const fileUrl = storage.getFileView(
-        process.env.NEXT_PUBLIC_APPWRITE_PP_BUCKET!,
-        uploadedFile.$id
-      )
-
-      // Delete old profile picture if it exists and extract fileId correctly
-      if (user.profilePicture && user.profilePicture.includes('/storage/buckets/')) {
-        try {
-          // Extract fileId from Appwrite file URL
-          const match = user.profilePicture.match(/\/buckets\/[^\/]+\/files\/([^\/]+)/)
-          const oldFileId = match ? match[1] : null
-          if (oldFileId) {
-            await storage.deleteFile(
-              process.env.NEXT_PUBLIC_APPWRITE_PP_BUCKET!,
-              oldFileId
-            )
-          }
-        } catch (error) {
-          console.error('Error deleting old profile picture:', error)
-        }
-      }
-
-      setProfileData(prev => ({ ...prev, profilePicture: fileUrl }))
-    } catch (error) {
-      console.error('Error uploading profile picture:', error)
-      alert('Failed to upload profile picture. Please try again.')
+    if (!user?.id || !user?.auth_id) {
+      toast.error('User not loaded yet')
+      return
     }
+    const supabase = require('@/lib/supabase/client').createClient();
+    // Basic validations
+    const maxSize = 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      toast.error('File too large (max 5MB)')
+      return
+    }
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file')
+      return
+    }
+    setIsUploadingImage(true)
+    let publicUrl: string | null = null
+    try {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      // Use auth_id (UUID) for per-user folder to align with storage RLS policies referencing auth.uid()
+      const objectPrefix = user.auth_id
+      const filePath = `${objectPrefix}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: uploadErr } = await supabase.storage.from('PP').upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true,
+      })
+      if (uploadErr) {
+        console.error('Storage upload error', uploadErr)
+        // Likely RLS on storage.objects
+        if (uploadErr.message?.toLowerCase().includes('row-level security')) {
+          toast.error('Upload blocked by storage RLS policy')
+        } else {
+          toast.error('Failed to upload file')
+        }
+        return
+      }
+      const { data: publicData } = supabase.storage.from('PP').getPublicUrl(filePath)
+      publicUrl = publicData?.publicUrl || null
+      if (!publicUrl) {
+        toast.error('Could not obtain public URL')
+        return
+      }
+      // Optimistic local update
+      setProfileData(prev => ({ ...prev, profilePicture: publicUrl! }))
+    } catch (err: any) {
+      console.error('Unexpected upload failure', err)
+      toast.error('Upload failed')
+    }
+    // Persist to DB separately so we can differentiate errors
+    if (publicUrl) {
+      try {
+        const { error: dbErr } = await supabase
+          .from('users')
+          .update({ profilePicture: publicUrl })
+          .eq('id', user.id)
+        if (dbErr) {
+          console.error('DB update error', dbErr)
+          if (dbErr.message?.toLowerCase().includes('row-level security')) {
+            toast.error('DB update blocked by RLS policy')
+          } else {
+            toast.error('Failed to save profile picture')
+          }
+        } else {
+          toast.success('Profile picture updated!', { position: 'top-center', autoClose: 2000 })
+        }
+      } catch (e) {
+        console.error('DB update exception', e)
+        toast.error('Failed to save profile picture')
+      }
+    }
+    setIsUploadingImage(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const updateProfile = async () => {
     setIsUpdatingProfile(true)
     try {
-      await databases.updateDocument(databaseId, usersCollection, user.$id, {
-        name: profileData.name.trim(),
-        profilePicture: profileData.profilePicture
-      })
-
-      // Update the user object in parent component would be ideal, 
-      // but for now we'll reload to get fresh data
+      const supabase = require('@/lib/supabase/client').createClient();
+      await supabase
+        .from('users')
+        .update({
+          name: profileData.name.trim(),
+          profilePicture: profileData.profilePicture
+        })
+        .eq('id', user.id);
       alert("Profile updated successfully!")
       window.location.reload()
     } catch (err) {
-      console.error("Error updating profile:", err)
       alert("Failed to update profile")
     } finally {
       setIsUpdatingProfile(false)
@@ -339,13 +397,19 @@ export default function HomeComponent({ user }: { user: any }) {
                             className="text-red-600 bg-red-100 border border-red-300 px-2 py-1 rounded font-bold animate-pulse"
                             onClick={async () => {
                               try {
-                                await databases.updateDocument(databaseId, householdsCollection, user.householdId, {
-                                  members: householdMembers.filter(m => m.$id !== member.$id).map(m => m.$id)
-                                })
-                                await databases.updateDocument(databaseId, usersCollection, member.$id, {
-                                  householdId: null
-                                })
-                                setHouseholdMembers(householdMembers.filter(m => m.$id !== member.$id))
+                                const supabase = require('@/lib/supabase/client').createClient();
+                                // Remove member from household
+                                const newMembers = householdMembers.filter(m => m.id !== member.id).map(m => m.id)
+                                await supabase
+                                  .from('household')
+                                  .update({ members: newMembers })
+                                  .eq('id', user.household_id)
+                                // Set member's household_id to null
+                                await supabase
+                                  .from('users')
+                                  .update({ household_id: null })
+                                  .eq('id', member.id)
+                                setHouseholdMembers(householdMembers.filter(m => m.id !== member.id))
                                 setPendingRemoveId(null)
                                 toast.success('Member removed!', { position: 'top-center', autoClose: 2000 })
                               } catch (err) {
@@ -527,17 +591,24 @@ export default function HomeComponent({ user }: { user: any }) {
             {/* Profile Picture */}
             <div className="text-center animate-in fade-in duration-500">
               <div className="relative inline-block group">
-                <img
-                  src={profileData.profilePicture || "/default-avatar.jpg"}
-                  alt="Profile"
-                  className="w-24 h-24 rounded-full border-4 border-slate-200 object-cover transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg"
-                />
+                <div className="relative">
+                  <img
+                    src={profileData.profilePicture || "/default-avatar.jpg"}
+                    alt="Profile"
+                    className={`w-24 h-24 rounded-full border-4 border-slate-200 object-cover transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg ${isUploadingImage ? 'opacity-60' : ''}`}
+                  />
+                  {isUploadingImage && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-8 h-8 border-4 border-white border-t-green-500 rounded-full animate-spin" />
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="absolute bottom-0 right-0 p-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition-all duration-300 shadow-lg hover:scale-110 hover:shadow-xl"
                   title="Change profile picture"
                 >
-                  <Camera className="w-4 h-4 transition-transform duration-300 hover:rotate-12" />
+                  <Camera className={`w-4 h-4 transition-transform duration-300 ${isUploadingImage ? 'opacity-50' : 'hover:rotate-12'}`} />
                 </button>
               </div>
               <input
@@ -547,7 +618,9 @@ export default function HomeComponent({ user }: { user: any }) {
                 onChange={handleProfileImageChange}
                 className="hidden"
               />
-              <p className="text-sm text-slate-500 mt-2 transition-all duration-300 hover:text-slate-700">Click the camera icon to change your photo</p>
+              <p className="text-sm text-slate-500 mt-2 transition-all duration-300 hover:text-slate-700">
+                {isUploadingImage ? 'Uploading image...' : 'Click the camera icon to change your photo'}
+              </p>
             </div>
 
             {/* Name Field */}

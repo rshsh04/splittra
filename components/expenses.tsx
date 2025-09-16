@@ -10,7 +10,6 @@ import jsPDF from "jspdf"
 export default function Expenses({ user }: { user: any }) {
   // Pie chart for analytics
   const AnalyticsDashboard = ({ expenses, usersMap }: any) => {
-    // Group expenses by user
     const userTotals: Record<string, number> = {}
     expenses.forEach((e: any) => {
       const userName = usersMap[e.userId] || "Unknown"
@@ -35,11 +34,10 @@ export default function Expenses({ user }: { user: any }) {
       </div>
     )
   }
-  // Premium badge and feature
-  const hasPremium = user?.premiumUntil && new Date(user.premiumUntil) > new Date();
+
+  const hasPremium = user?.premiumUntil && new Date(user.premiumUntil) > new Date()
 
   const handleExport = () => {
-    // Example export logic (CSV)
     const csv = expenses.map(exp => `${exp.name},${exp.price},${exp.info || ''},${exp.date || ''}`).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -50,6 +48,7 @@ export default function Expenses({ user }: { user: any }) {
     URL.revokeObjectURL(url)
     toast.success("Expenses exported as expenses.csv")
   }
+
   const {
     expenses,
     usersMap,
@@ -73,7 +72,6 @@ export default function Expenses({ user }: { user: any }) {
   const [editInfo, setEditInfo] = useState("")
   const [editIsLoan, setEditIsLoan] = useState(false)
   const [editLoanRecipient, setEditLoanRecipient] = useState("")
-
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   // Add expense
@@ -86,7 +84,7 @@ export default function Expenses({ user }: { user: any }) {
       price: parseFloat(price),
       info,
       householdId: user.householdId,
-      userId: user.$id,
+      userId: user.id,
       isLoan,
     }
 
@@ -100,6 +98,7 @@ export default function Expenses({ user }: { user: any }) {
     setLoanRecipient("")
     loadExpenses()
   }
+
   const handleExportPDF = () => {
     if (!expenses.length) return
     const doc = new jsPDF()
@@ -112,11 +111,11 @@ export default function Expenses({ user }: { user: any }) {
     doc.save("expenses.pdf")
     toast.success("Expenses exported as expenses.pdf")
   }
-  
+
   // Edit expense
   const handleEditExpense = (exp: any) => {
-    if (exp.userId !== user.$id) return
-    setEditId(exp.$id)
+    if (exp.userId !== user.id) return
+    setEditId(exp.id)
     setEditName(exp.name)
     setEditPrice(exp.price.toString())
     setEditInfo(exp.info || "")
@@ -161,7 +160,7 @@ export default function Expenses({ user }: { user: any }) {
     loadExpenses()
   }
 
-  // Calculate balances (unchanged logic)
+  // Balance calculation (same as before) …
   const calculateBalances = () => {
     const allUserIds = Object.keys(usersMap)
     if (allUserIds.length === 0)
@@ -220,9 +219,8 @@ export default function Expenses({ user }: { user: any }) {
   }
 
   const { balances, message, totalRegular, totalLoans } = calculateBalances()
-  
 
-  return (
+return (
   <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 ">
       {/* Premium badge */}
       <ToastContainer

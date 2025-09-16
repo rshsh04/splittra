@@ -78,11 +78,25 @@ export default function SignupPage() {
         return
       }
 
-      // Create users table row if desired (assumes table 'users' exists)
+      // Create or update users table row. Don't force `id` (bigint); store auth_id (uuid).
       try {
-        await supabase.from('users').insert({ id: data.user?.id, email, name, premiumUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() })
+        const authId = data.user?.id || null;
+        if (authId) {
+          const upsertResult = await supabase.from('users').upsert(
+            {
+              email,
+              name,
+              auth_id: authId,
+              premiumUntil: null,
+            },
+            { onConflict: 'email' }
+          );
+          // ...
+        } else {
+          console.warn('No auth user id returned from signUp; skipping users table upsert');
+        }
       } catch (e) {
-        console.error('Failed to create users row:', e)
+        console.error('Failed to create/upsert users row:', e);
       }
 
       setLoadingSignup(false)

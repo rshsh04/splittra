@@ -1,11 +1,11 @@
 'use client'
-import useAppwriteUser from '@/hooks/useAppwriteUser'
+import useSupabaseUser from '@/hooks/useSupabaseUser'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 export default function Header() {
-  const { user, loading } = useAppwriteUser()
+  const { user, loading } = useSupabaseUser()
   const router = useRouter()
 
   const handleRedirect = () => {

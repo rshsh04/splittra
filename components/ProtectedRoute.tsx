@@ -1,6 +1,6 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, ReactElement, cloneElement } from 'react'
-import useAppwriteUser from '@/hooks/useAppwriteUser'
+import useSupabaseUser from '@/hooks/useSupabaseUser'
 
 interface ProtectedRouteProps {
   children: ReactElement<{ user?: any }>
@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter()
-  const { user, loading } = useAppwriteUser()
+  const { user, loading } = useSupabaseUser()
 
   useEffect(() => {
     if (!loading && !user) {

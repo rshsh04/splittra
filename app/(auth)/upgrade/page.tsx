@@ -50,7 +50,7 @@ export default function UpgradePage() {
 	// Import toast, router, and user
 	const { toast } = require('react-toastify');
 	const { useRouter } = require('next/navigation');
-	const { user, loading } = require('@/hooks/useAppwriteUser').default();
+
 	const router = useRouter();
 
 	const handleUpgrade = async () => {
