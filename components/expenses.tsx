@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
+import { createClient } from "@/lib/supabase/client" 
 import { useExpenses } from "@/lib/useExpenses"
 import { PlusCircle, Trash2, Edit3, Save, X } from "lucide-react"
 import { toast, ToastContainer } from "react-toastify"
@@ -83,7 +84,7 @@ export default function Expenses({ user }: { user: any }) {
       name,
       price: parseFloat(price),
       info,
-      householdId: user.householdId,
+      household_id: user.household_id,
       userId: user.id,
       isLoan,
     }
@@ -156,7 +157,7 @@ export default function Expenses({ user }: { user: any }) {
 
   // Clear all expenses
   const handleClearExpenses = async () => {
-    await clearExpensesService(user.householdId)
+    await clearExpensesService(user.household_id)
     loadExpenses()
   }
 
@@ -217,6 +218,37 @@ export default function Expenses({ user }: { user: any }) {
 
     return { balances, message, totalRegular, totalLoans }
   }
+const supabase= createClient();
+
+  useEffect(() => {
+    const household_id =  user?.household_id
+    console.log("Setting up subscription for household_id:", household_id)
+    if (!household_id) return
+    loadExpenses()
+
+    // Realtime subscription for expenses changes
+    const channel = supabase
+      .channel(`expenses-changes-household-${household_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public', 
+          filter: `household_id=eq.${household_id}`,
+        },
+        (payload) => {
+          console.log("Received payload:", payload)
+          loadExpenses()
+        },
+
+      )
+      .subscribe()
+
+    return () => {
+      try { channel.unsubscribe() } catch (e) {}
+    }
+  }, [user?.household_id])
+
 
   const { balances, message, totalRegular, totalLoans } = calculateBalances()
 
@@ -392,7 +424,7 @@ return (
               >
                 <option value="">Select a household member</option>
                 {Object.entries(usersMap)
-                  .filter(([id]) => id !== user.$id)
+                  .filter(([id]) => id !== user.id)
                   .map(([id, name]) => (
                     <option key={id} value={id}>
                       {name}
@@ -422,10 +454,10 @@ return (
             <div className="space-y-4">
               {expenses.map(exp => (
                 <div
-                  key={exp.$id}
+                  key={exp.id}
                   className="border border-slate-200 rounded-xl p-6 bg-slate-50 hover:bg-slate-100 transition-colors"
                 >
-                  {editId === exp.$id ? (
+                  {editId === exp.id ? (
                     <form onSubmit={handleUpdateExpense} className="space-y-4">
                       <input
                         type="text"
@@ -467,7 +499,7 @@ return (
                         >
                           <option value="">Select a household member</option>
                           {Object.entries(usersMap)
-                            .filter(([id]) => id !== user.$id)
+                            .filter(([id]) => id !== user.id)
                             .map(([id, name]) => (
                               <option key={id} value={id}>
                                 {name}
@@ -512,7 +544,7 @@ return (
                       <div className="flex items-center space-x-4 ml-4">
                         <span className="text-2xl font-bold text-slate-800">${exp.price}</span>
                         <div className="flex space-x-2">
-                          {exp.userId === user.$id && (
+                          {exp.userId === user.id && (
                             <button
                               onClick={() => handleEditExpense(exp)}
                               className="text-blue-600 hover:text-blue-700 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
@@ -521,16 +553,16 @@ return (
                               <span className="text-sm font-medium">Edit</span>
                             </button>
                           )}
-                          {deleteId === exp.$id ? (
+                          {deleteId === exp.id ? (
                             <button
-                              onClick={() => handleDeleteExpense(exp.$id)}
+                              onClick={() => handleDeleteExpense(exp.id)}
                               className="text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg font-medium transition-colors"
                             >
                               Confirm Delete
                             </button>
                           ) : (
                             <button
-                              onClick={() => setDeleteId(exp.$id)}
+                              onClick={() => setDeleteId(exp.id)}
                               className="text-red-600 hover:text-red-700 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-red-50 transition-colors"
                             >
                               <Trash2 className="w-4 h-4" />

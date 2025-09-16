@@ -13,7 +13,7 @@ export default function Home() {
     return <LoadingScreen />;
   }
 
-  if (user?.householdId) {
+  if (user?.household_id) {
     return <HomeComponent user={user} />;
   }
 

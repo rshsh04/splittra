@@ -59,8 +59,8 @@ export async function deleteExpense(id: number | string) {
 }
 
 // Clear all household expenses
-export async function clearExpenses(householdId: number | string) {
-  const expenses = await fetchExpenses(householdId);
+export async function clearExpenses(household_id: number | string) {
+  const expenses = await fetchExpenses(household_id);
   for (const exp of expenses) {
     await deleteExpense(exp.id);
   }

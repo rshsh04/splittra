@@ -5,7 +5,7 @@ import { ChevronDown, Settings, LogOut, Users, Edit2, Check, X, User, Mail, Came
 import Image from "next/image"
 import Link from "next/link"
 import { ToastContainer, toast } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
+
 
 export default function HomeComponent({ user }: { user: any }) {
 
@@ -17,14 +17,14 @@ export default function HomeComponent({ user }: { user: any }) {
   // Fetch household members and owner
   useEffect(() => {
     const fetchMembers = async () => {
-      const householdId = user?.household_id ?? user?.householdId
-      if (!householdId) return
+      const household_id = user?.household_id 
+      if (!household_id) return
       try {
         const supabase = require('@/lib/supabase/client').createClient();
         const { data: household, error: hhErr } = await supabase
           .from('household')
           .select('*')
-          .eq('id', householdId)
+          .eq('id', household_id)
           .maybeSingle();
         if (hhErr) throw hhErr;
         if (!household) {
@@ -49,11 +49,11 @@ export default function HomeComponent({ user }: { user: any }) {
           setHouseholdMembers([])
         }
       } catch (err) {
-        // ...
+        console.error("Failed to fetch household members:", err)
       }
     }
     fetchMembers()
-  }, [user?.household_id, user?.householdId, showHouseholdDropdown])
+  }, [user?.household_id, user?.household_id, showHouseholdDropdown])
   const [householdName, setHouseholdName] = useState("Household")
   const [householdCode, setHouseholdCode] = useState("")
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
@@ -81,14 +81,14 @@ export default function HomeComponent({ user }: { user: any }) {
 
   useEffect(() => {
     const fetchHousehold = async () => {
-      const householdId = user?.household_id ?? user?.householdId
-      if (!householdId) return
+      const household_id = user?.household_id 
+      if (!household_id) return
       try {
         const supabase = require('@/lib/supabase/client').createClient();
         const { data: household, error: hhErr } = await supabase
           .from('household')
           .select('*')
-          .eq('id', householdId)
+          .eq('id', household_id)
           .maybeSingle();
         if (hhErr) throw hhErr;
         if (!household) return
@@ -378,11 +378,11 @@ export default function HomeComponent({ user }: { user: any }) {
                 <div className="font-semibold text-slate-800 mb-2">Members</div>
                 <ul className="space-y-2">
                   {householdMembers.map(member => (
-                    <li key={member.$id} className={`flex items-center justify-between p-2 rounded-lg ${member.$id === householdOwnerId ? 'bg-white border border-gray-300' : 'bg-white border border-slate-200'}`}>
+                    <li key={member.id} className={`flex items-center justify-between p-2 rounded-lg ${member.id === householdOwnerId ? 'bg-white border border-gray-300' : 'bg-white border border-slate-200'}`}>
                       <div className="flex items-center gap-2 relative group">
                         <img src={member.profilePicture || '/default-avatar.jpg'} alt={member.name} className="w-8 h-8 rounded-full border" />
-                        <span className={`font-medium ${member.$id === householdOwnerId ? 'text-yellow-700' : 'text-slate-800'}`}>{member.name || member.email}</span>
-                        {member.$id === householdOwnerId && (
+                        <span className={`font-medium ${member.id === householdOwnerId ? 'text-yellow-700' : 'text-slate-800'}`}>{member.name || member.email}</span>
+                        {member.id === householdOwnerId && (
                           <>
                             <Crown className="w-4 h-4 text-yellow-500 cursor-pointer group-hover:scale-110 transition-transform duration-200" />
                             <span className="absolute right-10 top-1 z-10 hidden group-hover:flex bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-md border border-yellow-300 whitespace-nowrap">
@@ -391,8 +391,8 @@ export default function HomeComponent({ user }: { user: any }) {
                           </>
                         )}
                       </div>
-                      {user.$id === householdOwnerId && member.$id !== householdOwnerId && (
-                        (pendingRemoveId === member.$id ? (
+                      {user.$id === householdOwnerId && member.id !== householdOwnerId && (
+                        (pendingRemoveId === member.id ? (
                           <button
                             className="text-red-600 bg-red-100 border border-red-300 px-2 py-1 rounded font-bold animate-pulse"
                             onClick={async () => {
@@ -421,7 +421,7 @@ export default function HomeComponent({ user }: { user: any }) {
                         ) : (
                           <button
                             className="text-red-600 hover:text-red-800 px-2 py-1 rounded transition-all duration-200 border border-red-200 bg-red-50 hover:bg-red-100"
-                            onClick={() => setPendingRemoveId(member.$id)}
+                            onClick={() => setPendingRemoveId(member.id)}
                           >Remove</button>
                         ))
                       )}

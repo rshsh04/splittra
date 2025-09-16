@@ -18,18 +18,18 @@ export function useExpenses(user: any) {
 
   // Load expenses
   const loadExpenses = async () => {
-    const householdId = user?.household_id ?? user?.householdId
-    if (!householdId) return
+    const household_id = user?.household_id
+    if (!household_id) return
 
     // 1. Load expenses
-    const res = await fetchExpenses(householdId)
+    const res = await fetchExpenses(household_id)
     setExpenses(res)
 
     // 2. Fetch household to get members
     const { data: household, error: householdError } = await supabase
       .from('household')
       .select('members')
-      .eq('id', householdId)
+      .eq('id', household_id)
       .maybeSingle()
 
     if (householdError || !household) return
@@ -45,33 +45,6 @@ export function useExpenses(user: any) {
       setUsersMap(map)
     }
   }
-
-  useEffect(() => {
-    const householdId = user?.household_id ?? user?.householdId
-    if (!householdId) return
-    loadExpenses()
-
-    // Realtime subscription for expenses changes
-    const channel = supabase
-      .channel(`expenses-changes-household-${householdId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'expenses',
-          filter: `householdId=eq.${householdId}`,
-        },
-        () => {
-          loadExpenses()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      try { channel.unsubscribe() } catch (e) {}
-    }
-  }, [user?.householdId])
 
   return {
     expenses,
