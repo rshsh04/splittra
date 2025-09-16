@@ -1,8 +1,13 @@
-'use client'
-import { ReactNode, useState } from 'react'
-import { createClient } from '@/lib/supabase/client';
-import { Home, Users, Copy, Plus, LogOut } from 'lucide-react'
-import Header from './header';
+ 'use client'
+ import { ReactNode, useState } from 'react'
+ import { Home, Users, Copy, Plus, LogOut } from 'lucide-react'
+ import Header from './header';
+ import {
+   fetchHouseholdByOwner,
+   fetchHouseholdByCode,
+   updateHouseholdMembers,
+   updateUserHousehold,
+ } from '@/lib/expensesService'
 
 export default function HouseholdSetup({ user, children }: { user: any; children?: ReactNode }) {
   const [inviteCode, setInviteCode] = useState<string | null>(null)
@@ -15,20 +20,15 @@ export default function HouseholdSetup({ user, children }: { user: any; children
     setIsCreating(true)
     try {
       if (!user) return
-      const supabase = createClient();
       // Check if user already has a household
-      const { data: existing, error: existingErr } = await supabase
-        .from('household')
-        .select('*')
-        .eq('owner_id', user.id)
-        .limit(1);
-      if (existingErr) throw existingErr;
-      if (existing && existing.length > 0) {
-        setInviteCode(existing[0].code)
+      const existing = await fetchHouseholdByOwner(user.id)
+      if (existing) {
+        setInviteCode(existing.code)
         return
       }
       // Create new household
       const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+      const supabase = (await import('@/lib/supabase/client')).createClient()
       const { data: household, error: createErr } = await supabase
         .from('household')
         .insert({
@@ -40,12 +40,8 @@ export default function HouseholdSetup({ user, children }: { user: any; children
         .select()
         .maybeSingle();
       if (createErr) throw createErr;
-      // Update user row with household_id
-      const { error: userErr } = await supabase
-        .from('users')
-        .update({ household_id: household.id })
-        .eq('id', user.id);
-      if (userErr) throw userErr;
+      // Update user row with household_id via helper
+      await updateUserHousehold(user.id, household.id)
       setInviteCode(household.code)
     } catch (err: any) {
       alert(`Failed to create household: ${err.message || err}`)
@@ -65,18 +61,11 @@ export default function HouseholdSetup({ user, children }: { user: any; children
     }
     setIsJoining(true)
     try {
-      const supabase = createClient();
-      const { data: result, error: findErr } = await supabase
-        .from('household')
-        .select('*')
-        .eq('code', friendCode.toUpperCase())
-        .limit(1);
-      if (findErr) throw findErr;
-      if (!result || result.length === 0) {
+      const household = await fetchHouseholdByCode(friendCode.toUpperCase())
+      if (!household) {
         alert('Invalid invite code. Please check and try again.')
         return
       }
-      const household = result[0];
       // Check if user is already a member
       if (household?.members?.includes(user.id)) {
         alert("You are already a member of this household!")
@@ -84,18 +73,15 @@ export default function HouseholdSetup({ user, children }: { user: any; children
       }
 
       // Add user to members array
-      const { error: updErr } = await supabase.rpc("append_member", {
-        household_id: household.id,
-        new_member: user.id,
-      });
-      if (updErr) throw updErr;
-
-      // Update user row with household_id (we already have household.id)
-      const { error: userErr } = await supabase
-        .from('users')
-        .update({ household_id: household.id })
-        .eq('id', user.id);
-      if (userErr) throw userErr;
+      // normalize members safely and update from the client
+      const members = Array.isArray(household.members) ? household.members : []
+      if (members.includes(user.id)) {
+        alert("You are already a member")
+        return
+      }
+      const newMembers = Array.from(new Set([...members, user.id])) // avoid duplicates
+      await updateHouseholdMembers(household.id, newMembers)
+      await updateUserHousehold(user.id, household.id)
       window.location.reload()
     } catch (err: any) {
       alert(err.message || 'Failed to join household.')
@@ -114,7 +100,7 @@ export default function HouseholdSetup({ user, children }: { user: any; children
 
   const handleLogout = async () => {
     try {
-      const supabase = createClient()
+      const supabase = (await import('@/lib/supabase/client')).createClient()
       await supabase.auth.signOut()
       window.location.reload()
     } catch (error) { }

@@ -1,5 +1,5 @@
 "use client"
-
+import useSupabaseUser from "@/hooks/useSupabaseUser";
 import Link from "next/link"
 import { loadStripe } from '@stripe/stripe-js';
 import { CheckCircle, Star, Crown, Zap, Shield, Users, Calculator, TrendingUp, ArrowRight, DollarSign } from 'lucide-react';
@@ -52,6 +52,7 @@ export default function UpgradePage() {
 	const { useRouter } = require('next/navigation');
 
 	const router = useRouter();
+	const { user, loading } = useSupabaseUser();
 
 	const handleUpgrade = async () => {
 	

@@ -19,12 +19,7 @@ export async function POST(req: NextRequest) {
       ],
       customer_email: email || undefined,
       subscription_data: {
-        trial_settings: {
-          end_behavior: {
-            missing_payment_method: 'cancel',
-          },
-        },
-        trial_period_days: 14,
+
         metadata: {
           userId: userId || '',
         },

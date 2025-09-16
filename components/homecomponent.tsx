@@ -5,6 +5,7 @@ import { ChevronDown, Settings, LogOut, Users, Edit2, Check, X, User, Mail, Came
 import Image from "next/image"
 import Link from "next/link"
 import { ToastContainer, toast } from 'react-toastify'
+import { loadStripe } from '@stripe/stripe-js'
 
 
 export default function HomeComponent({ user }: { user: any }) {
@@ -17,7 +18,7 @@ export default function HomeComponent({ user }: { user: any }) {
   // Fetch household members and owner
   useEffect(() => {
     const fetchMembers = async () => {
-      const household_id = user?.household_id 
+      const household_id = user?.household_id
       if (!household_id) return
       try {
         const supabase = require('@/lib/supabase/client').createClient();
@@ -36,7 +37,9 @@ export default function HomeComponent({ user }: { user: any }) {
         }
         setHouseholdName(household.household_name || household.householdName || "Household")
         setHouseholdCode(household.code || "")
-        setHouseholdOwnerId(household.owner_id ? household.owner_id.toString() : "")
+        // Support both owner_id and ownerId field names and ensure string type
+        const ownerId = household.owner_id ?? household.ownerId ?? household.owner
+        setHouseholdOwnerId(ownerId ? String(ownerId) : "")
         // Fetch member details
         if (household.members && household.members.length > 0) {
           const { data: usersRes, error: usersErr } = await supabase
@@ -44,7 +47,9 @@ export default function HomeComponent({ user }: { user: any }) {
             .select('*')
             .in('id', household.members)
           if (usersErr) throw usersErr;
-          setHouseholdMembers(usersRes || [])
+          // Normalize members' ids to strings to avoid equality mismatch
+          const normalized = (usersRes || []).map((u: any) => ({ ...u, id: String(u.id) }))
+          setHouseholdMembers(normalized)
         } else {
           setHouseholdMembers([])
         }
@@ -53,7 +58,7 @@ export default function HomeComponent({ user }: { user: any }) {
       }
     }
     fetchMembers()
-  }, [user?.household_id, user?.household_id, showHouseholdDropdown])
+  }, [user?.household_id, showHouseholdDropdown])
   const [householdName, setHouseholdName] = useState("Household")
   const [householdCode, setHouseholdCode] = useState("")
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
@@ -69,6 +74,7 @@ export default function HomeComponent({ user }: { user: any }) {
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
   const [showPremiumModal, setShowPremiumModal] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   const premiumUntil = user?.premiumUntil ? new Date(user.premiumUntil) : null
   const hasPremium = premiumUntil && premiumUntil > new Date();
@@ -191,7 +197,7 @@ export default function HomeComponent({ user }: { user: any }) {
       const supabase = require('@/lib/supabase/client').createClient();
       const { data, error } = await supabase
         .from('household')
-        .update({ household_name: editNameValue.trim() })
+        .update({ householdName: editNameValue.trim() })
         .eq('id', user.household_id);
       if (error) throw error;
       setHouseholdName(editNameValue.trim())
@@ -338,6 +344,53 @@ export default function HomeComponent({ user }: { user: any }) {
     }
   }
 
+  const handleBilling = async () => {
+    try {
+      setIsProcessing(true)
+      // Send minimal identifying info so the server can associate the session
+      const res = await fetch('/api/create-customer-portal-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id, stripeCustomerId: user?.stripeCustomerId, email: user?.email }),
+      })
+
+      if (!res.ok) {
+        // Try to capture server error body (json or text) for easier debugging
+        let errBody: any = null
+        try {
+          errBody = await res.json()
+        } catch (e) {
+          try {
+            errBody = await res.text()
+          } catch (e2) {
+            errBody = `Status ${res.status}`
+          }
+        }
+        console.error('Checkout creation failed:', errBody)
+        toast.error('Checkout creation failed. See console for details.', { position: 'top-center' })
+        throw new Error(typeof errBody === 'string' ? errBody : (errBody?.error || JSON.stringify(errBody)))
+      }
+
+      const data = await res.json() // expect { id } or { url }
+      if (data.url) {
+        // server returned full URL
+        window.location.href = data.url
+        return
+      }
+
+      const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+      const result = await stripe!.redirectToCheckout({ sessionId: data.id })
+      if ((result as any)?.error) {
+        console.error('Stripe redirectToCheckout error:', (result as any).error)
+        toast.error('Stripe redirect failed. See console for details.', { position: 'top-center' })
+      }
+    } catch (err) {
+      console.error('handleBilling error', err)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-slate-50 transition-all duration-300">
       <ToastContainer />
@@ -373,16 +426,56 @@ export default function HomeComponent({ user }: { user: any }) {
               ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
               : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'
               }`} style={{ minHeight: '320px', padding: '1.25rem', maxHeight: '90vh' }}>
-              {/* Members List */}
+              {/* Household header: name + owner-only edit */}
               <div className="p-4 border-b border-slate-200 bg-slate-50">
+                <div className="flex items-center bg-white border border-gray-300 rounded-lg px-3 py-2  justify-between mb-3">
+                  {isEditingName ? (
+                    <div className="flex items-center gap-2 w-full">
+                      <input
+                        ref={nameInputRef}
+                        value={editNameValue}
+                        onChange={(e) => setEditNameValue(e.target.value)}
+                        onKeyDown={handleNameKeyPress}
+                        className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                      <button
+                        onClick={saveHouseholdName}
+                        className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={cancelEditingName}
+                        className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 flex justify-between w-full">
+                      <div className="font-semibold text-slate-800 text-lg truncate " >{householdName} </div> 
+                      
+                      {String(user?.id) === String(householdOwnerId) && (
+                        <button
+                          onClick={startEditingName}
+                          title="Edit household name"
+                          className="p-2  rounded hover:bg-slate-100"
+                        >
+                          <Edit2 className="w-4 h-4 text-slate-600 " />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {/* Members List */}
                 <div className="font-semibold text-slate-800 mb-2">Members</div>
                 <ul className="space-y-2">
                   {householdMembers.map(member => (
-                    <li key={member.id} className={`flex items-center justify-between p-2 rounded-lg ${member.id === householdOwnerId ? 'bg-white border border-gray-300' : 'bg-white border border-slate-200'}`}>
+                    <li key={member.id} className={`flex items-center justify-between p-2 rounded-lg ${String(member.id) === String(householdOwnerId) ? 'bg-white border border-gray-300' : 'bg-white border border-slate-200'}`}>
                       <div className="flex items-center gap-2 relative group">
                         <img src={member.profilePicture || '/default-avatar.jpg'} alt={member.name} className="w-8 h-8 rounded-full border" />
-                        <span className={`font-medium ${member.id === householdOwnerId ? 'text-yellow-700' : 'text-slate-800'}`}>{member.name || member.email}</span>
-                        {member.id === householdOwnerId && (
+                        <span className={`font-medium ${String(member.id) === String(householdOwnerId) ? 'text-yellow-700' : 'text-slate-800'}`}>{member.name || member.email}</span>
+                        {String(member.id) === String(householdOwnerId) && (
                           <>
                             <Crown className="w-4 h-4 text-yellow-500 cursor-pointer group-hover:scale-110 transition-transform duration-200" />
                             <span className="absolute right-10 top-1 z-10 hidden group-hover:flex bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-md border border-yellow-300 whitespace-nowrap">
@@ -391,7 +484,7 @@ export default function HomeComponent({ user }: { user: any }) {
                           </>
                         )}
                       </div>
-                      {user.$id === householdOwnerId && member.id !== householdOwnerId && (
+                      {String(user?.id) === String(householdOwnerId) && String(member.id) !== String(householdOwnerId) && (
                         (pendingRemoveId === member.id ? (
                           <button
                             className="text-red-600 bg-red-100 border border-red-300 px-2 py-1 rounded font-bold animate-pulse"
@@ -529,16 +622,15 @@ export default function HomeComponent({ user }: { user: any }) {
                   <Settings className="w-4 h-4 transition-transform duration-300 hover:rotate-90" />
                   Account Settings
                 </button>
-                <Link href="/billing">
                   <button
+                    onClick={handleBilling}
+                    disabled={isProcessing}
                     className="w-full text-left px-4 py-3 text-sm hover:bg-slate-50 text-slate-700 flex items-center gap-3 transition-all duration-300 hover:translate-x-1"
                   >
                     <CreditCard className="w-4 h-4 text-purple-500 transition-transform duration-300 hover:rotate-90" />
                     Billing
                   </button>
-                </Link>
 
-                
                 <button
                   className="w-full text-left px-4 py-3 text-sm hover:bg-slate-50 text-slate-700 flex items-center gap-3 transition-all duration-300 hover:translate-x-1"
                   onClick={() => setShowPremiumModal(true)}

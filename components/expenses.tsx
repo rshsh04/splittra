@@ -244,8 +244,28 @@ const supabase= createClient();
       )
       .subscribe()
 
+    // Realtime subscription for users (household members) changes
+    const usersChannel = supabase
+      .channel(`users-changes-household-${household_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'users',
+          filter: `household_id=eq.${household_id}`,
+        },
+        (payload) => {
+          console.log('Users payload:', payload)
+          // Refresh expenses and user map when member data changes
+          loadExpenses()
+        }
+      )
+      .subscribe()
+
     return () => {
       try { channel.unsubscribe() } catch (e) {}
+      try { usersChannel.unsubscribe() } catch (e) {}
     }
   }, [user?.household_id])
 
@@ -329,15 +349,64 @@ return (
                       {b.loansNet !== 0 && ` • Loans Net: $${b.loansNet.toFixed(2)}`}
                     </p>
                   </div>
-                  <div
-                    className={`font-bold text-lg px-4 py-2 rounded-full ${b.finalBalance > 0.01
-                      ? "bg-green-100 text-green-800 border border-green-200"
-                      : b.finalBalance < -0.01
-                        ? "bg-red-100 text-red-800 border border-red-200"
-                        : "bg-slate-100 text-slate-600 border border-slate-200"
-                      }`}
-                  >
-                    {b.finalBalance > 0.01 ? "+" : ""}${b.finalBalance.toFixed(2)}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`font-bold text-lg px-4 py-2 rounded-full ${b.finalBalance > 0.01
+                        ? "bg-green-100 text-green-800 border border-green-200"
+                        : b.finalBalance < -0.01
+                          ? "bg-red-100 text-red-800 border border-red-200"
+                          : "bg-slate-100 text-slate-600 border border-slate-200"
+                        }`}
+                    >
+                      {b.finalBalance > 0.01 ? "+" : ""}${b.finalBalance.toFixed(2)}
+                    </div>
+
+                    {/* Settle button: records a loan-style settlement between current user and target user */}
+                    <button
+                      onClick={async () => {
+                        const amt = Math.abs(Number(b.finalBalance || 0))
+                        if (amt < 0.01) return
+                        const confirmMsg = b.finalBalance > 0
+                          ? `Record a settlement where you pay ${b.name} $${amt.toFixed(2)}?`
+                          : `Record a settlement where ${b.name} pays you $${amt.toFixed(2)}?`
+                        if (!confirm(confirmMsg)) return
+
+                        try {
+                          // if b.finalBalance > 0 => b should receive money, current user pays b
+                          let payload: any
+                          if (b.finalBalance > 0) {
+                            payload = {
+                              name: `Settlement to ${b.name}`,
+                              price: amt,
+                              household_id: user.household_id,
+                              userId: user.id,
+                              isLoan: true,
+                              loanRecipientId: b.uid,
+                            }
+                          } else {
+                            // b owes money: record b paying current user
+                            payload = {
+                              name: `Settlement from ${b.name}`,
+                              price: amt,
+                              household_id: user.household_id,
+                              userId: b.uid,
+                              isLoan: true,
+                              loanRecipientId: user.id,
+                            }
+                          }
+
+                          await addExpenseService(payload)
+                          toast.success('Settlement recorded')
+                          loadExpenses()
+                        } catch (err: any) {
+                          console.error('Failed to record settlement', err)
+                          toast.error(err?.message || 'Failed to record settlement')
+                        }
+                      }}
+                      className="text-sm px-3 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-100"
+                    >
+                      Settle
+                    </button>
                   </div>
                 </div>
               ))}
