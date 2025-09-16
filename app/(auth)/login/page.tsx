@@ -1,5 +1,5 @@
+
 'use client'
-import { Client, Account, OAuthProvider } from 'appwrite'
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { TbPassword } from 'react-icons/tb'
@@ -7,22 +7,18 @@ import { Bounce, ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import useAppwriteUser from '@/hooks/useAppwriteUser'
 import Header from '@/components/header'
 import LoadingScreen from '@/components/LoadingScreen'
 import Footer from '@/components/footer'
-
-const client = new Client()
-  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
-  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '')
-
-const account = new Account(client)
+import { createClient } from '@/lib/supabase/client'
+import useSupabaseUser from '@/hooks/useSupabaseUser'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const router = useRouter()
-  const { user, loading } = useAppwriteUser()
+  const { user, loading } = useSupabaseUser()
+  const supabase = createClient()
 
   // Redirect if already logged in
   useEffect(() => {
@@ -33,6 +29,7 @@ export default function LoginPage() {
   if (loading) {
     return <LoadingScreen />
   }
+
   const validateForm = () => {
     if (!email || !password) {
       toast.error('Email and password are required')
@@ -46,49 +43,34 @@ export default function LoginPage() {
   }
 
   const handleLogin = async () => {
-    try {
-      if (!validateForm()) return
+    if (!validateForm()) return
+    const promise = supabase.auth.signInWithPassword({ email, password })
 
-      const promise = account.createEmailPasswordSession(email, password)
-
-      toast.promise(promise, {
-        pending: 'Logging in...',
-        success: 'Login successful! 👋',
-        error: {
-          render({ data }: { data?: Error }) {
-            const message = data?.message || 'Login failed'
-            console.error(data)
-            return message
-          }
+    toast.promise(promise, {
+      pending: 'Logging in...',
+      success: 'Login successful! 👋',
+      error: {
+        render({ data }: { data?: any }) {
+          const message = data?.error?.message || data?.message || 'Login failed'
+          return message
         }
-      })
-
-      await promise
-      // Check if user is verified
-      const user = await account.get();
-      if (!user.emailVerification) {
-        await account.createVerification({
-          url: typeof window !== 'undefined' ? window.location.origin + '/verify' : 'http://localhost:3000/verify'
-        });
-        toast.info('Please verify your email. A verification link has been sent.');
-        router.push('/verify');
-        return;
       }
-      router.push('/dashboard');
-    } catch (err: any) {
-      console.error(err)
+    })
+
+    const { data, error } = await promise
+    if (error) {
+      toast.error(error.message)
+      return
     }
+    router.push('/dashboard')
   }
 
   const handleGoogleLogin = async () => {
     try {
-      await account.createOAuth2Session({
-        provider: OAuthProvider.Google,
-        success: 'http://localhost:3000/dashboard',
-        failure: 'http://localhost:3000/login'
-      })
-    } catch (err) {
-      console.error(err)
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: typeof window !== 'undefined' ? window.location.origin + '/dashboard' : '' } })
+      if (error) toast.error(error.message)
+    } catch (err: any) {
+      toast.error(err?.message || 'Google login failed')
     }
   }
 

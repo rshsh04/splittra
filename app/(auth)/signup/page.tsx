@@ -1,5 +1,5 @@
+
 'use client'
-import { Client, Account, ID, OAuthProvider, Query } from 'appwrite'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -7,16 +7,10 @@ import Header from '@/components/header'
 import { Bounce, ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { useRouter } from 'next/navigation'
-import useAppwriteUser from '@/hooks/useAppwriteUser'
+import useSupabaseUser from '@/hooks/useSupabaseUser'
 import LoadingScreen from '@/components/LoadingScreen'
 import Footer from '@/components/footer'
-import { databases } from '@/lib/appwrite'
-
-const client = new Client()
-  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
-  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '')
-
-const account = new Account(client)
+import { createClient } from '@/lib/supabase/client'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -26,7 +20,8 @@ export default function SignupPage() {
   const [success, setSuccess] = useState(false)
   const [loadingSignup, setLoadingSignup] = useState(false)
   const router = useRouter()
-  const { user, loading } = useAppwriteUser()
+  const { user, loading } = useSupabaseUser()
+  const supabase = createClient()
 
   // Redirect if already logged in
   useEffect(() => {
@@ -37,6 +32,7 @@ export default function SignupPage() {
   if (loading) {
     return <LoadingScreen />
   }
+
   const validateForm = () => {
     if (!email || !password || !name) {
       toast.error('All fields are required')
@@ -52,63 +48,43 @@ export default function SignupPage() {
     }
     return true
   }
-  const checkEmailExists = async () => {
-    const query = [Query.equal('email', email)]
-    try {
-      const users = await databases.listDocuments(
-        process.env.NEXT_PUBLIC_APPWRITE_DATABASE!,
-        process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION!,
-        query
-      )
-      if (users.total > 0) {
-        toast.error('Email already exists')
-        return false
-      }
-      return true
-    } catch (error) {
-      console.error(error)
-      toast.error('Failed to check if email exists')
-      return false
-    }
-  }
 
   const handleSignup = async () => {
     try {
       setError('')
       setSuccess(false)
       if (!validateForm()) return
-      if (!(await checkEmailExists())) return
 
       setSuccess(false)
       setLoadingSignup(true)
-      const userId = ID.unique();
-      const promise = account.create(userId, email, password, name)
+
+      const promise = supabase.auth.signUp({ email, password, options: { data: { name } } })
 
       toast.promise(promise, {
         pending: 'Creating your account...',
         success: 'Account created successfully! 👋',
         error: {
-          render({ data }: { data?: Error }) {
-            const message = data?.message || 'Signup failed'
+          render({ data }: { data?: any }) {
+            const message = data?.error?.message || data?.message || 'Signup failed'
             setError(message)
             return message
           }
         }
       })
 
-      await promise
-      // Grant 14-day premium trial
-      await databases.createDocument(
-        process.env.NEXT_PUBLIC_APPWRITE_DATABASE!,
-        process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION!,
-        userId,
-        {
-          name,
-          email,
-          householdId: null,
-          premiumUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        }
-      )
+      const { data, error } = await promise
+      if (error) {
+        setLoadingSignup(false)
+        return
+      }
+
+      // Create users table row if desired (assumes table 'users' exists)
+      try {
+        await supabase.from('users').insert({ id: data.user?.id, email, name, premiumUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() })
+      } catch (e) {
+        console.error('Failed to create users row:', e)
+      }
+
       setLoadingSignup(false)
       router.push('/dashboard')
     } catch (err: any) {
@@ -119,14 +95,12 @@ export default function SignupPage() {
 
   const handleGoogleSignup = async () => {
     try {
-      await account.createOAuth2Session({
-        provider: OAuthProvider.Google,
-        success: 'http://localhost:3000/dashboard',
-        failure: 'http://localhost:3000/signup'
-      })
-      // The user document creation and premium trial logic should be handled in useAppwriteUser after OAuth login
-    } catch (err) {
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: typeof window !== 'undefined' ? window.location.origin + '/dashboard' : '' } })
+      if (error) toast.error(error.message)
+      // The user row creation should be handled in a server webhook or on first login
+    } catch (err: any) {
       console.error(err)
+      toast.error(err?.message || 'Google signup failed')
     }
   }
 
