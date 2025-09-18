@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo } from 'react'
+import { Suspense, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Header from '@/components/header'
 import Footer from '@/components/footer'
@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Bounce, ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 
-export default function VerifyPage() {
+function VerifyInner() {
   const supabase = createClient()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -46,6 +46,22 @@ export default function VerifyPage() {
   }, [tokens.access_token, tokens.refresh_token])
 
   return (
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="bg-base-100 rounded-2xl shadow-2xl py-12 px-8 flex flex-col items-center w-full max-w-md border border-base-300 animate-fade-in">
+        <svg width="64" height="64" fill="none" viewBox="0 0 24 24" className="mb-4 text-success">
+          <circle cx="12" cy="12" r="12" fill="#22c55e" />
+          <path d="M7 13l3 3 7-7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <h2 className="text-3xl font-bold mb-2 text-primary text-center">Finalizing Verification</h2>
+        <p className="text-lg text-gray-700 mb-2 text-center">Please wait while we verify your email and sign you in.</p>
+        <p className="text-sm text-gray-500 text-center">If nothing happens, try the link again or log in.</p>
+      </div>
+    </div>
+  )
+}
+
+export default function VerifyPage() {
+  return (
     <>
       <ToastContainer
         position="top-right"
@@ -62,17 +78,9 @@ export default function VerifyPage() {
         transition={Bounce}
       />
       <Header />
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="bg-base-100 rounded-2xl shadow-2xl py-12 px-8 flex flex-col items-center w-full max-w-md border border-base-300 animate-fade-in">
-          <svg width="64" height="64" fill="none" viewBox="0 0 24 24" className="mb-4 text-success">
-            <circle cx="12" cy="12" r="12" fill="#22c55e" />
-            <path d="M7 13l3 3 7-7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <h2 className="text-3xl font-bold mb-2 text-primary text-center">Finalizing Verification</h2>
-          <p className="text-lg text-gray-700 mb-2 text-center">Please wait while we verify your email and sign you in.</p>
-          <p className="text-sm text-gray-500 text-center">If nothing happens, try the link again or log in.</p>
-        </div>
-      </div>
+      <Suspense>
+        <VerifyInner />
+      </Suspense>
       <Footer />
     </>
   )
