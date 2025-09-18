@@ -6,6 +6,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { ToastContainer, toast } from 'react-toastify'
 import { loadStripe } from '@stripe/stripe-js'
+import { getUserSubscription } from "@/lib/premiumCheck"
 
 
 export default function HomeComponent({ user }: { user: any }) {
@@ -75,9 +76,25 @@ export default function HomeComponent({ user }: { user: any }) {
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
   const [showPremiumModal, setShowPremiumModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [hasPremium, setHasPremium] = useState<boolean>(false)
 
-  const premiumUntil = user?.premiumUntil ? new Date(user.premiumUntil) : null
-  const hasPremium = premiumUntil && premiumUntil > new Date();
+  useEffect(() => {
+    let mounted = true
+    const fetchSubscription = async () => {
+      if (!user?.id) return
+      try {
+        const res = await getUserSubscription(user.id)
+        if (!mounted) return
+        setHasPremium(Boolean(res?.hasPremium))
+      } catch (err) {
+        console.error('Failed to fetch subscription status', err)
+      }
+    }
+    fetchSubscription()
+    return () => {
+      mounted = false
+    }
+  }, [user?.id])
 
   const householdRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
@@ -636,7 +653,7 @@ export default function HomeComponent({ user }: { user: any }) {
                   onClick={() => setShowPremiumModal(true)}
                 >
                   <Crown className="w-4 h-4 text-yellow-500" />
-                  {hasPremium ? `Premium (Until ${premiumUntil?.toLocaleDateString()})` : 'Upgrade to Premium'}
+                  {hasPremium ? `Premium` : 'Upgrade to Premium'}
                 </button>
               </div>
               <div className="border-t border-slate-200">
@@ -797,7 +814,7 @@ export default function HomeComponent({ user }: { user: any }) {
             {hasPremium ? (
               <div>
                 <p className="text-lg text-gray-700 mb-4">
-                  Your premium subscription is active until {premiumUntil?.toLocaleDateString()}.
+                  You are a premium user.
                 </p>
                 <div className="flex flex-col gap-4">
                   <h3 className="font-semibold text-gray-900">Premium Features:</h3>

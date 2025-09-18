@@ -7,8 +7,10 @@ import { useExpenses } from "@/lib/useExpenses"
 import { PlusCircle, Trash2, Edit3, Save, X } from "lucide-react"
 import { toast, ToastContainer } from "react-toastify"
 import jsPDF from "jspdf"
+import { getUserSubscription } from "@/lib/premiumCheck"
 
 export default function Expenses({ user }: { user: any }) {
+  const [hasPremium, setHasPremium] = useState<boolean>(false)
   // Pie chart for analytics
   const AnalyticsDashboard = ({ expenses, usersMap }: any) => {
     const userTotals: Record<string, number> = {}
@@ -36,7 +38,26 @@ export default function Expenses({ user }: { user: any }) {
     )
   }
 
-  const hasPremium = user?.premiumUntil && new Date(user.premiumUntil) > new Date()
+
+  useEffect(() => {
+    let mounted = true
+    const fetchSubscription = async () => {
+      if (!user?.id) return
+      try {
+        const res = await getUserSubscription(user.id)
+        if (!mounted) return
+        setHasPremium(Boolean(res?.hasPremium))
+      } catch (err) {
+        console.error('Failed to fetch subscription status', err)
+      }
+    }
+    fetchSubscription()
+    return () => {
+      mounted = false
+    }
+  }, [user?.id])
+
+
 
   const handleExport = () => {
     const csv = expenses.map(exp => `${exp.name},${exp.price},${exp.info || ''},${exp.date || ''}`).join('\n')

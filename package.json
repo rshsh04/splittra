@@ -9,11 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^4.0.2",
     "@stripe/stripe-js": "^7.9.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.4",
     "daisyui": "^5.1.9",
-    "docker": "^0.2.14",
+    "docker": "^1.0.0",
     "framer-motion": "^12.23.12",
     "jspdf": "^3.0.2",
     "lucide-react": "^0.543.0",

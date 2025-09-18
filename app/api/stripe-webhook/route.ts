@@ -23,12 +23,8 @@ export async function POST(req: NextRequest) {
   try {
     event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
   } catch (err) {
-    console.error("❌ Stripe signature verification failed", err);
     return new Response("Invalid signature", { status: 400 });
   }
-
-  // Hardcode premium days
-  const PREMIUM_DAYS = 30;
 
   switch (event.type) {
     case "checkout.session.completed": {
@@ -36,55 +32,147 @@ export async function POST(req: NextRequest) {
       const email = session.customer_details?.email || session.customer_email;
       const subscriptionId = session.subscription as string | undefined;
       const customerId = session.customer as string;
-      const subscription = await stripe.subscriptions.list({
-        customer: customerId,
-        status: "active",
-      });
+      const mode = session.mode;
+      
+      if (!email) break;
 
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + PREMIUM_DAYS);
-      const premiumUntil = expiresAt.toISOString();
+      const { data: existingUser } = await supabaseAdmin
+        .from("users")
+        .select("id, email")
+        .eq("email", email)
+        .single();
 
-      if (email) {
+      if (!existingUser) break;
+
+      let updateData: any = {
+        stripeCustomerId: customerId,
+      };
+
+      if (mode === "subscription" && subscriptionId) {
+        try {
+          const expandedSession = await stripe.checkout.sessions.retrieve(session.id, {
+            expand: ['subscription']
+          });
+          
+          const subscription = expandedSession.subscription as Stripe.Subscription;
+          
+          updateData = {
+            ...updateData,
+            stripeSubscriptionId: subscription.id,
+            subscriptionStatus: subscription.status,
+          };
+        } catch (expandError) {
+          // Handle error silently
+        }
+      } else if (mode === "payment") {
+        updateData = {
+          ...updateData,
+          subscriptionStatus: "one_time_payment",
+          lastPaymentDate: Math.floor(Date.now() / 1000),
+        };
+      }
+
+      await supabaseAdmin
+        .from("users")
+        .update(updateData)
+        .eq("email", email);
+      break;
+    }
+
+    case "customer.subscription.created": {
+      const subscription = event.data.object as Stripe.Subscription;
+      const customerId = subscription.customer as string;
+      
+      try {
+        const expandedSubscription = await stripe.subscriptions.retrieve(subscription.id, {
+          expand: ['customer']
+        });
+        
+        const customer = expandedSubscription.customer as Stripe.Customer;
+        const email = customer.email;
+        
+        if (!email) break;
+
+        const { data: existingUser } = await supabaseAdmin
+          .from("users")
+          .select("id, email")
+          .eq("email", email)
+          .single();
+
+        if (!existingUser) break;
+
+        const updateData = {
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: expandedSubscription.id,
+          subscriptionStatus: expandedSubscription.status,
+        };
+
         await supabaseAdmin
           .from("users")
-          .update({
-            stripeSubscriptionId: subscriptionId || null,
-            stripeCustomerId: customerId,
-            premiumUntil,
-            subscriptionStatus: subscriptionId ? "active" : "inactive",
-          })
+          .update(updateData)
           .eq("email", email);
-
-        console.log(`✅ Updated user ${email}: premiumUntil set to ${premiumUntil}`);
+      } catch (error) {
+        // Handle error silently
       }
       break;
     }
 
-    case "customer.subscription.updated":
-    case "customer.subscription.deleted": {
+    case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = subscription.customer as string;
+      
+      try {
+        const expandedSubscription = await stripe.subscriptions.retrieve(subscription.id);
+        
+        const updateData = {
+          stripeSubscriptionId: expandedSubscription.id,
+          subscriptionStatus: expandedSubscription.status,
+        };
 
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + PREMIUM_DAYS);
-      const premiumUntil = subscription.status === "active" ? expiresAt.toISOString() : null;
-
-      await supabaseAdmin
-        .from("users")
-        .update({
-          stripeSubscriptionId: subscription.id,
-          premiumUntil,
-          subscriptionStatus: subscription.status === "active" ? "active" : "inactive",
-        })
-        .eq("stripeCustomerId", customerId);
-
-      console.log(`✅ Updated user with customerId ${customerId}: premiumUntil=${premiumUntil}`);
+        await supabaseAdmin
+          .from("users")
+          .update(updateData)
+          .eq("stripeCustomerId", customerId);
+      } catch (error) {
+        // Handle error silently
+      }
       break;
     }
 
-    default:
-      console.log(`⚠️ Unhandled event type: ${event.type}`);
+    case "customer.subscription.deleted": {
+      const subscription = event.data.object as Stripe.Subscription;
+      const customerId = subscription.customer as string;
+      
+      const updateData = {
+        stripeSubscriptionId: null,
+        subscriptionStatus: "canceled",
+      };
+
+      await supabaseAdmin
+        .from("users")
+        .update(updateData)
+        .eq("stripeCustomerId", customerId);
+      break;
+    }
+
+    case "invoice.payment_succeeded": {
+      const invoice = event.data.object as Stripe.Invoice;
+      
+      if (invoice.billing_reason === "subscription_create" || invoice.billing_reason === "subscription_update") {
+        try {
+        
+        } catch (error) {
+          // Handle error silently
+        }
+      }
+      break;
+    }
+
+    case "invoice.payment_failed": {
+      const invoice = event.data.object as Stripe.Invoice;
+  
+      break;
+    }
   }
 
   return new Response("Success", { status: 200 });
