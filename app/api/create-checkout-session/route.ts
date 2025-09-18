@@ -1,45 +1,50 @@
 import { NextRequest } from 'next/server';
 import Stripe from 'stripe';
 
+export const runtime = 'nodejs'
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-export async function POST(req: NextRequest) {
-  // Only handle Stripe checkout session creation
-  
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
+}
 
+export async function POST(req: NextRequest) {
   try {
-    const origin = req.headers.get('origin') || '';
-    const { coupon, userId, email } = await req.json();
-    if (!userId) {
-      return Response.json({ error: 'Missing userId' }, { status: 400 });
-    }
+    const fallbackOrigin = process.env.NEXT_PUBLIC_SITE_URL || 'https://splittra.se'
+    const originHeader = req.headers.get('origin') || ''
+    const origin = originHeader || req.nextUrl.origin || fallbackOrigin
+
+    const { coupon, userId, email } = await req.json().catch(() => ({ }))
     if (!email) {
-      return Response.json({ error: 'Missing email' }, { status: 400 });
+      return Response.json({ error: 'Missing email' }, { status: 400 })
     }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
           price: 'price_1S7O1fGUKaK460WZqxrbK8Gv',
           quantity: 1,
-          
         },
       ],
-      customer_email: email || undefined,
-      subscription_data: {
-        
-        metadata: {
-          userId: userId || '',
-        },
-      },
+      customer_email: email,
+      subscription_data: userId ? { metadata: { userId: String(userId) } } : undefined,
       mode: 'subscription',
       success_url: `${origin}/dashboard?success=true`,
       cancel_url: `${origin}/upgrade?canceled=true`,
       allow_promotion_codes: true,
       discounts: coupon ? [{ coupon }] : [],
-    });
-    return Response.json({ id: session.id });
+    })
+    return Response.json({ id: session.id })
   } catch (error) {
-    return Response.json({ error: (error as Error).message || 'Unknown error' }, { status: 500 });
+    return Response.json({ error: (error as Error).message || 'Unknown error' }, { status: 500 })
   }
 }
