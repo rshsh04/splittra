@@ -1,20 +1,17 @@
 'use client'
 import { useState } from 'react'
-import { Account, Client } from 'appwrite'
+
 import { Bounce, ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import Header from '@/components/header'
 import Footer from '@/components/footer'
+import { createClient } from '@/lib/supabase/client'
 
-const client = new Client()
-  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
-  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '')
-
-const account = new Account(client)
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
+  const supabase = createClient()
 
   const handleResetPassword = async () => {
     if (!email) {
@@ -23,11 +20,12 @@ export default function ResetPasswordPage() {
     }
     setLoading(true)
     try {
-      await account.createRecovery({
-        email,
-        url: typeof window !== 'undefined' ? window.location.origin + '/recovery' : 'http://localhost:3000/recovery'
-        
-      })
+      const redirectTo = typeof window !== 'undefined'
+        ? `${window.location.origin}/recovery`
+        : 'https://splittra.se/recovery'
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+      if (error) throw error
       toast.success('Password reset link sent to your email')
     } catch (err) {
       toast.error('Failed to send reset link')

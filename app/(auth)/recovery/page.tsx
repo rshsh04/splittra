@@ -1,26 +1,43 @@
 'use client'
-import { useState, Suspense } from 'react'
+import { useEffect, useMemo, useState, Suspense } from 'react'
 
 import { Bounce, ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import Header from '@/components/header'
 import Footer from '@/components/footer'
 import { useRouter, useSearchParams } from 'next/navigation'
-
-const client = new Client()
-  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
-  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '')
-
-const account = new Account(client)
+import { createClient } from '@/lib/supabase/client'
 
 function RecoveryPageInner() {
+  const supabase = createClient()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const userId = searchParams.get('userId') || ''
-  const secret = searchParams.get('secret') || ''
+
+  const tokens = useMemo(() => {
+    const qAccess = searchParams?.get('access_token') || null
+    const qRefresh = searchParams?.get('refresh_token') || null
+    let hAccess: string | null = null
+    let hRefresh: string | null = null
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+      hAccess = hash.get('access_token')
+      hRefresh = hash.get('refresh_token')
+    }
+    return { access_token: qAccess || hAccess, refresh_token: qRefresh || hRefresh }
+  }, [searchParams])
+
+  useEffect(() => {
+    if (tokens.access_token && tokens.refresh_token) {
+      supabase.auth.setSession({
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+      }).catch((err) => console.warn('Failed to set session from recovery link', err))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokens.access_token, tokens.refresh_token])
 
   // Password validation states
   const passwordValidations = [
@@ -30,15 +47,16 @@ function RecoveryPageInner() {
   ];
   const passwordsMatch = password && confirmPassword && password === confirmPassword;
 
-  const canSubmit = passwordValidations.every(v => v.valid) && passwordsMatch && userId && secret;
+  const canSubmit = passwordValidations.every(v => v.valid) && passwordsMatch;
 
   const handleRecover = async () => {
     if (!canSubmit) return;
     setLoading(true);
     try {
-      await account.updateRecovery({ userId, secret, password });
-      toast.success('Password updated! You can now log in.');
-      setTimeout(() => router.push('/login'), 2000);
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) throw error
+      toast.success('Password updated! You are now signed in.');
+      setTimeout(() => router.push('/dashboard'), 1200);
     } catch (err) {
       toast.error('Failed to update password');
       console.error(err);

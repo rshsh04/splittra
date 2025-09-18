@@ -62,6 +62,7 @@ export default function UpgradePage() {
 			return;
 		}
 		try {
+			toast.info("Redirecting to checkout...");
 			const res = await fetch('/api/create-checkout-session', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
