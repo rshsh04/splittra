@@ -110,7 +110,18 @@ export default function Expenses({ user }: { user: any }) {
       isLoan,
     }
 
-    if (isLoan && loanRecipient) payload.loanRecipientId = loanRecipient
+    // Prevent creating a loan to self and ensure recipient is selected
+    if (isLoan) {
+      if (!loanRecipient) {
+        toast.error('Please select a loan recipient')
+        return
+      }
+      if (loanRecipient === user.id) {
+        toast.error('You cannot loan to yourself')
+        return
+      }
+      payload.loanRecipientId = loanRecipient
+    }
 
     await addExpenseService(payload)
     setName("")
@@ -156,8 +167,20 @@ export default function Expenses({ user }: { user: any }) {
       isLoan: editIsLoan,
     }
 
-    if (editIsLoan && editLoanRecipient) payload.loanRecipientId = editLoanRecipient
-    else payload.loanRecipientId = null
+    // Prevent turning into a self-loan and ensure recipient is selected
+    if (editIsLoan) {
+      if (!editLoanRecipient) {
+        toast.error('Please select a loan recipient')
+        return
+      }
+      if (editLoanRecipient === user.id) {
+        toast.error('You cannot loan to yourself')
+        return
+      }
+      payload.loanRecipientId = editLoanRecipient
+    } else {
+      payload.loanRecipientId = null
+    }
 
     await updateExpenseService(editId, payload)
     setEditId(null)
@@ -203,7 +226,8 @@ export default function Expenses({ user }: { user: any }) {
       const lender = exp.userId
       const recipient = exp.loanRecipientId
       const amount = Number(exp.price || 0)
-      if (recipient && allUserIds.includes(recipient)) {
+      // Ignore any malformed or self-loan records
+      if (recipient && recipient !== lender && allUserIds.includes(recipient)) {
         loanMap[lender] += amount
         loanMap[recipient] -= amount
       }
@@ -293,78 +317,74 @@ const supabase= createClient();
 
   const { balances, message, totalRegular, totalLoans } = calculateBalances()
 
-return (
-  <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 ">
-      {/* Premium badge */}
-      <ToastContainer
-        position="top-center"
-        autoClose={5000}
-      />
-      {/* Premium-only export button */}
-      <div style={{ marginBottom: 16 }}>
+  return (
+    <section className="flex-1 p-4 lg:p-8">
+      <ToastContainer position="top-center" autoClose={5000} />
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-lg lg:text-2xl font-medium mb-6">Household Expenses</h1>
 
-  {hasPremium ? (
-          <div className="flex gap-3">
-            <button
-              onClick={handleExport}
-              className="bg-yellow-400 hover:bg-yellow-500 text-white px-4 py-2 rounded-xl font-semibold"
-            >
-              Export CSV
-            </button>
-            <button
-              onClick={handleExportPDF}
-              className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-xl font-semibold"
-            >
-              Export PDF
-            </button>
+        {/* Exports / Premium notice */}
+        <div className="rounded-lg border bg-white mb-8">
+          <div className="p-6">
+            {hasPremium ? (
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleExport}
+                  className="inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium bg-yellow-400 hover:bg-yellow-500 text-white"
+                >
+                  Export CSV
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  className="inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium bg-red-500 hover:bg-purple-600 text-white"
+                >
+                  Export PDF
+                </button>
+              </div>
+            ) : (
+              <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 font-medium">
+                Upgrade to Premium to unlock export feature! 🚀
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="text-center p-4 mb-12 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 font-medium">
-            Upgrade to Premium to unlock export feature! 🚀
-          </div>
-        ) }
-
-
-      </div>
-      <div className="max-w-4xl mx-auto space-y-8">
-  {/* Analytics Pie Chart */}
- 
-        {/* Header */}
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-slate-800 mb-2">Household Expenses</h1>
-          <p className="text-slate-600">Track and split expenses with your household</p>
         </div>
 
-
-
         {/* Summary */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl p-6 mb-6 text-center">
-            <p className="font-medium text-lg">{message}</p>
+        <div className="rounded-lg border bg-white mb-8">
+          <div className="border-b p-6">
+            <p className="text-sm text-muted-foreground">Summary</p>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 text-center border border-green-200">
-              <div className="text-3xl font-bold text-green-700 mb-1">${totalRegular.toFixed(2)}</div>
-              <div className="text-sm font-medium text-green-600">Total Split Expenses</div>
+          <div className="p-6">
+            <div className="rounded-md bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 mb-6 text-center">
+              <p className="font-medium">{message}</p>
             </div>
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 text-center border border-blue-200">
-              <div className="text-3xl font-bold text-blue-700 mb-1">${totalLoans.toFixed(2)}</div>
-              <div className="text-sm font-medium text-blue-600">Total Loans</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="rounded-md p-4 text-center border bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                <div className="text-2xl font-bold text-green-700 mb-1">${totalRegular.toFixed(2)}</div>
+                <div className="text-sm font-medium text-green-600">Total Split Expenses</div>
+              </div>
+              <div className="rounded-md p-4 text-center border bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                <div className="text-2xl font-bold text-blue-700 mb-1">${totalLoans.toFixed(2)}</div>
+                <div className="text-sm font-medium text-blue-600">Total Loans</div>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Balances */}
-          <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
-            <h4 className="font-bold text-slate-800 mb-4 text-lg">Individual Balances</h4>
+        {/* Balances */}
+        <div className="rounded-lg border bg-white mb-8">
+          <div className="border-b p-6">
+            <h2 className="text-base font-medium">Individual Balances</h2>
+          </div>
+          <div className="p-6">
             <div className="space-y-3">
-              {balances.map(b => (
+              {balances.map((b) => (
                 <div
                   key={b.uid}
-                  className="flex justify-between items-center p-4 bg-white rounded-lg shadow-sm border border-slate-200"
+                  className="flex justify-between items-center p-4 bg-white rounded-md border"
                 >
                   <div>
-                    <span className="font-semibold text-slate-800 text-lg">{b.name}</span>
+                    <span className="font-semibold text-slate-800">{b.name}</span>
                     <p className="text-sm text-slate-500 mt-1">
                       Paid: ${b.paid.toFixed(2)} • Owes: ${b.owes.toFixed(2)}
                       {b.loansNet !== 0 && ` • Loans Net: $${b.loansNet.toFixed(2)}`}
@@ -372,29 +392,32 @@ return (
                   </div>
                   <div className="flex items-center gap-3">
                     <div
-                      className={`font-bold text-lg px-4 py-2 rounded-full ${b.finalBalance > 0.01
-                        ? "bg-green-100 text-green-800 border border-green-200"
-                        : b.finalBalance < -0.01
-                          ? "bg-red-100 text-red-800 border border-red-200"
-                          : "bg-slate-100 text-slate-600 border border-slate-200"
-                        }`}
+                      className={`font-semibold text-sm px-3 py-1 rounded-full ${
+                        b.finalBalance > 0.01
+                          ? 'bg-green-100 text-green-800 border border-green-200'
+                          : b.finalBalance < -0.01
+                          ? 'bg-red-100 text-red-800 border border-red-200'
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                      }`}
                     >
-                      {b.finalBalance > 0.01 ? "+" : ""}${b.finalBalance.toFixed(2)}
+                      {b.finalBalance > 0.01 ? '+' : ''}${b.finalBalance.toFixed(2)}
                     </div>
-
-                    {/* Settle button: records a loan-style settlement between current user and target user */}
                     <button
                       onClick={async () => {
                         const amt = Math.abs(Number(b.finalBalance || 0))
                         if (amt < 0.01) return
-                        const confirmMsg = b.finalBalance > 0
-                          ? `Record a settlement where you pay ${b.name} $${amt.toFixed(2)}?`
-                          : `Record a settlement where ${b.name} pays you $${amt.toFixed(2)}?`
+                        const confirmMsg =
+                          b.finalBalance > 0
+                            ? `Record a settlement where you pay ${b.name} $${amt.toFixed(2)}?`
+                            : `Record a settlement where ${b.name} pays you $${amt.toFixed(2)}?`
                         if (!confirm(confirmMsg)) return
 
                         try {
-                          // if b.finalBalance > 0 => b should receive money, current user pays b
                           let payload: any
+                          if (b.uid === user.id) {
+                            toast.error('You cannot settle with yourself')
+                            return
+                          }
                           if (b.finalBalance > 0) {
                             payload = {
                               name: `Settlement to ${b.name}`,
@@ -405,7 +428,6 @@ return (
                               loanRecipientId: b.uid,
                             }
                           } else {
-                            // b owes money: record b paying current user
                             payload = {
                               name: `Settlement from ${b.name}`,
                               price: amt,
@@ -424,7 +446,7 @@ return (
                           toast.error(err?.message || 'Failed to record settlement')
                         }
                       }}
-                      className="text-sm px-3 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-100"
+                      className="text-xs px-3 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 border"
                     >
                       Settle
                     </button>
@@ -438,14 +460,14 @@ return (
                   <span className="text-slate-600 text-sm font-medium">Are you sure? This cannot be undone.</span>
                   <button
                     onClick={handleClearExpenses}
-                    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition-colors shadow-md"
+                    className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm"
                   >
                     <Trash2 className="w-4 h-4" />
                     Yes, Clear All
                   </button>
                   <button
                     onClick={() => setShowClearConfirm(false)}
-                    className="flex items-center gap-2 bg-slate-500 hover:bg-slate-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                    className="inline-flex items-center gap-2 bg-slate-500 hover:bg-slate-600 text-white px-4 py-2 rounded-md text-sm"
                   >
                     Cancel
                   </button>
@@ -453,7 +475,7 @@ return (
               ) : (
                 <button
                   onClick={() => setShowClearConfirm(true)}
-                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition-colors shadow-md"
+                  className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm"
                 >
                   <Trash2 className="w-4 h-4" />
                   Clear All
@@ -462,213 +484,230 @@ return (
             </div>
           </div>
         </div>
-              {hasPremium?(
-        <AnalyticsDashboard expenses={expenses} usersMap={usersMap} />
-              ) : <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 font-medium">
+
+        {/* Analytics */}
+        {hasPremium ? (
+          <div className="rounded-lg border bg-white mb-8">
+            <div className="border-b p-6">
+              <h2 className="text-base font-medium">Analytics</h2>
+            </div>
+            <div className="p-6">
+              <AnalyticsDashboard expenses={expenses} usersMap={usersMap} />
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border bg-white mb-8">
+            <div className="p-6">
+              <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 font-medium">
                 Upgrade to Premium to unlock analytics feature! 🚀
-              </div>}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Add Expense */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
-          <h2 className="text-2xl font-bold text-slate-800 mb-6">Add New Expense</h2>
-          <form onSubmit={handleAddExpense} className="space-y-4">
-            <input
-              type="text"
-              placeholder="Expense name (e.g., Groceries, Utilities)"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full border border-slate-300 bg-white text-slate-800 placeholder-slate-400 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="Amount ($)"
-              value={price}
-              onChange={e => setPrice(e.target.value)}
-              className="w-full border border-slate-300 bg-white text-slate-800 placeholder-slate-400 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-            <textarea
-              placeholder="Additional notes (optional)"
-              value={info}
-              onChange={e => setInfo(e.target.value)}
-              rows={2}
-              className="w-full border border-slate-300 bg-white text-slate-800 placeholder-slate-400 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-            />
-            <label className="flex items-center space-x-3 cursor-pointer">
+        <div className="rounded-lg border bg-white mb-8">
+          <div className="border-b p-6">
+            <h2 className="text-base font-medium">Add New Expense</h2>
+          </div>
+          <div className="p-6">
+            <form onSubmit={handleAddExpense} className="space-y-4">
               <input
-                type="checkbox"
-                checked={isLoan}
-                onChange={e => setIsLoan(e.target.checked)}
-                className="h-5 w-5 text-blue-600 border-2 border-slate-300 rounded focus:ring-blue-500"
-              />
-              <span className="text-slate-800 font-medium">This is a loan</span>
-            </label>
-            {isLoan && (
-              <select
-                value={loanRecipient}
-                onChange={e => setLoanRecipient(e.target.value)}
-                className="w-full border border-slate-300 bg-white text-slate-800 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                type="text"
+                placeholder="Expense name (e.g., Groceries, Utilities)"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full border bg-white text-slate-800 placeholder-slate-400 px-4 py-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
+              />
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="Amount ($)"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className="w-full border bg-white text-slate-800 placeholder-slate-400 px-4 py-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+              <textarea
+                placeholder="Additional notes (optional)"
+                value={info}
+                onChange={(e) => setInfo(e.target.value)}
+                rows={2}
+                className="w-full border bg-white text-slate-800 placeholder-slate-400 px-4 py-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isLoan}
+                  onChange={(e) => setIsLoan(e.target.checked)}
+                  className="h-5 w-5 text-blue-600 border-2 border-slate-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-slate-800 text-sm">This is a loan</span>
+              </label>
+              {isLoan && (
+                <select
+                  value={loanRecipient}
+                  onChange={(e) => setLoanRecipient(e.target.value)}
+                  className="w-full border bg-white text-slate-800 px-4 py-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">Select a household member</option>
+                  {Object.entries(usersMap)
+                    .filter(([id]) => id !== user.id)
+                    .map(([id, name]) => (
+                      <option key={id} value={id}>
+                        {name}
+                      </option>
+                    ))}
+                </select>
+              )}
+              <button
+                type="submit"
+                className="w-full inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-md font-medium"
               >
-                <option value="">Select a household member</option>
-                {Object.entries(usersMap)
-                  .filter(([id]) => id !== user.id)
-                  .map(([id, name]) => (
-                    <option key={id} value={id}>
-                      {name}
-                    </option>
-                  ))}
-              </select>
-            )}
-            <button
-              type="submit"
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl"
-            >
-              <PlusCircle className="w-5 h-5" /> Add Expense
-            </button>
-          </form>
+                <PlusCircle className="w-5 h-5" /> Add Expense
+              </button>
+            </form>
+          </div>
         </div>
 
         {/* Expenses List */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
-          <h2 className="text-2xl font-bold text-slate-800 mb-6">All Expenses</h2>
-          {expenses.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-slate-400 text-6xl mb-4">📊</div>
-              <p className="text-slate-500 text-lg">No expenses recorded yet</p>
-              <p className="text-slate-400 text-sm">Add your first expense above to get started</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {expenses.map(exp => (
-                <div
-                  key={exp.id}
-                  className="border border-slate-200 rounded-xl p-6 bg-slate-50 hover:bg-slate-100 transition-colors"
-                >
-                  {editId === exp.id ? (
-                    <form onSubmit={handleUpdateExpense} className="space-y-4">
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={e => setEditName(e.target.value)}
-                        className="w-full border border-slate-300 bg-white text-slate-800 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        value={editPrice}
-                        onChange={e => setEditPrice(e.target.value)}
-                        className="w-full border border-slate-300 bg-white text-slate-800 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                      <textarea
-                        value={editInfo}
-                        onChange={e => setEditInfo(e.target.value)}
-                        className="w-full border border-slate-300 bg-white text-slate-800 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                        rows={2}
-                      />
-                      <label className="flex items-center space-x-3 cursor-pointer">
+        <div className="rounded-lg border bg-white mb-8">
+          <div className="border-b p-6">
+            <h2 className="text-base font-medium">All Expenses</h2>
+          </div>
+          <div className="p-6">
+            {expenses.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-slate-400 text-5xl mb-4">📊</div>
+                <p className="text-slate-500">No expenses recorded yet</p>
+                <p className="text-slate-400 text-sm">Add your first expense above to get started</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {expenses.map((exp) => (
+                  <div key={exp.id} className="border rounded-md p-4 bg-white">
+                    {editId === exp.id ? (
+                      <form onSubmit={handleUpdateExpense} className="space-y-4">
                         <input
-                          type="checkbox"
-                          checked={editIsLoan}
-                          onChange={e => setEditIsLoan(e.target.checked)}
-                          className="h-5 w-5 text-blue-600 border-2 border-slate-300 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-slate-800 font-medium">This is a loan</span>
-                      </label>
-                      {editIsLoan && (
-                        <select
-                          value={editLoanRecipient}
-                          onChange={e => setEditLoanRecipient(e.target.value)}
-                          className="w-full border border-slate-300 bg-white text-slate-800 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="w-full border bg-white text-slate-800 px-4 py-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           required
-                        >
-                          <option value="">Select a household member</option>
-                          {Object.entries(usersMap)
-                            .filter(([id]) => id !== user.id)
-                            .map(([id, name]) => (
-                              <option key={id} value={id}>
-                                {name}
-                              </option>
-                            ))}
-                        </select>
-                      )}
-                      <div className="flex space-x-3">
-                        <button
-                          type="submit"
-                          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-                        >
-                          <Save className="w-4 h-4" /> Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditId(null)}
-                          className="flex items-center gap-2 bg-slate-500 hover:bg-slate-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-                        >
-                          <X className="w-4 h-4" /> Cancel
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-slate-800 text-xl mb-1">{exp.name}</h3>
-                        <div className="space-y-1">
-                          <p className="text-sm text-slate-600">
-                            <span className="font-medium">Paid by:</span> {usersMap[exp.userId] || "Unknown"}
-                          </p>
-                          {exp.isLoan && exp.loanRecipientId && (
-                            <p className="text-sm text-blue-600 font-medium">
-                              🔗 Loan to: {usersMap[exp.loanRecipientId]}
+                        />
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={editPrice}
+                          onChange={(e) => setEditPrice(e.target.value)}
+                          className="w-full border bg-white text-slate-800 px-4 py-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                        <textarea
+                          value={editInfo}
+                          onChange={(e) => setEditInfo(e.target.value)}
+                          className="w-full border bg-white text-slate-800 px-4 py-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          rows={2}
+                        />
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editIsLoan}
+                            onChange={(e) => setEditIsLoan(e.target.checked)}
+                            className="h-5 w-5 text-blue-600 border-2 border-slate-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="text-slate-800 text-sm">This is a loan</span>
+                        </label>
+                        {editIsLoan && (
+                          <select
+                            value={editLoanRecipient}
+                            onChange={(e) => setEditLoanRecipient(e.target.value)}
+                            className="w-full border bg-white text-slate-800 px-4 py-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                          >
+                            <option value="">Select a household member</option>
+                            {Object.entries(usersMap)
+                              .filter(([id]) => id !== user.id)
+                              .map(([id, name]) => (
+                                <option key={id} value={id}>
+                                  {name}
+                                </option>
+                              ))}
+                          </select>
+                        )}
+                        <div className="flex gap-3">
+                          <button
+                            type="submit"
+                            className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm"
+                          >
+                            <Save className="w-4 h-4" /> Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditId(null)}
+                            className="inline-flex items-center gap-2 bg-slate-500 hover:bg-slate-600 text-white px-4 py-2 rounded-md text-sm"
+                          >
+                            <X className="w-4 h-4" /> Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-slate-800 mb-1">{exp.name}</h3>
+                          <div className="space-y-1">
+                            <p className="text-sm text-slate-600">
+                              <span className="font-medium">Paid by:</span> {usersMap[exp.userId] || 'Unknown'}
                             </p>
-                          )}
-                          {exp.info && (
-                            <p className="text-sm text-slate-500 italic">{exp.info}</p>
-                          )}
+                            {exp.isLoan && exp.loanRecipientId && (
+                              <p className="text-sm text-blue-600 font-medium">🔗 Loan to: {usersMap[exp.loanRecipientId]}</p>
+                            )}
+                            {exp.info && <p className="text-sm text-slate-500 italic">{exp.info}</p>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 ml-4">
+                          <span className="text-xl font-semibold text-slate-800">${exp.price}</span>
+                          <div className="flex gap-2">
+                            {exp.userId === user.id && (
+                              <button
+                                onClick={() => handleEditExpense(exp)}
+                                className="text-blue-600 hover:text-blue-700 inline-flex items-center gap-1 px-3 py-1 rounded-md hover:bg-blue-50 text-sm"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                                Edit
+                              </button>
+                            )}
+                            {deleteId === exp.id ? (
+                              <button
+                                onClick={() => handleDeleteExpense(exp.id)}
+                                className="text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded-md text-sm"
+                              >
+                                Confirm Delete
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => setDeleteId(exp.id)}
+                                className="text-red-600 hover:text-red-700 inline-flex items-center gap-1 px-3 py-1 rounded-md hover:bg-red-50 text-sm"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4 ml-4">
-                        <span className="text-2xl font-bold text-slate-800">${exp.price}</span>
-                        <div className="flex space-x-2">
-                          {exp.userId === user.id && (
-                            <button
-                              onClick={() => handleEditExpense(exp)}
-                              className="text-blue-600 hover:text-blue-700 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                              <span className="text-sm font-medium">Edit</span>
-                            </button>
-                          )}
-                          {deleteId === exp.id ? (
-                            <button
-                              onClick={() => handleDeleteExpense(exp.id)}
-                              className="text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg font-medium transition-colors"
-                            >
-                              Confirm Delete
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => setDeleteId(exp.id)}
-                              className="text-red-600 hover:text-red-700 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-red-50 transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              <span className="text-sm font-medium">Delete</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   )
 }

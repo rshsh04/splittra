@@ -8,7 +8,8 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
     images: {
-    domains: ["images.unsplash.com"], // Add any external domains you use
+    domains: ["images.unsplash.com"],
+    remotePatterns: [], // Add any external domains you use
   },
   /* config options here */
 };
