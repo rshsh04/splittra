@@ -10,9 +10,12 @@ import Expenses from "./expenses"
 import HouseholdComponent from "./HouseholdComponent"
 import AccountComponent from "./AccountComponent"
 import { Menu, Settings, LogOut, Users, ChevronDown, Crown, CreditCard, DollarSign } from "lucide-react"
+import { useI18n } from "@/lib/i18n/LocaleProvider"
+import LanguageSwitcher from "./LanguageSwitcher"
 
 
 export default function HomeComponent({ user }: { user: any }) {
+  const { t } = useI18n()
   const [activeView, setActiveView] = useState<"expenses" | "household" | "account">("expenses")
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [hasPremium, setHasPremium] = useState<boolean>(false)
@@ -66,9 +69,9 @@ export default function HomeComponent({ user }: { user: any }) {
   }
 
   const navItems = [
-    { id: 'expenses' as const, icon: DollarSign, label: 'Expenses' },
-    { id: 'household' as const, icon: Users, label: 'Household' },
-    { id: 'account' as const, icon: Settings, label: 'Account Settings' },
+    { id: 'expenses' as const, icon: DollarSign, label: t('expenses') },
+    { id: 'household' as const, icon: Users, label: t('household') },
+    { id: 'account' as const, icon: Settings, label: t('accountSettings') },
   ]
 
   const renderActiveView = () => {
@@ -86,14 +89,18 @@ export default function HomeComponent({ user }: { user: any }) {
       <header className="border-b border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           {/* Logo */}
+          <Link href="/">
           <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Logo" width={32} height={32} className="object-contain" />
-            <span className="text-xl font-semibold text-gray-900">Splittra</span>
-          </div>
+            <Image src="/logo.png" alt="Logo" width={100} height={100} className="object-contain" />
 
-          {/* Desktop Profile Menu */}
+            </div>
+          </Link>
+
+          {/* Desktop Right Controls */}
           <div className="hidden lg:flex items-center">
-            <div className="relative">
+            <div className="flex items-center gap-4">
+              <LanguageSwitcher />
+              <div className="relative">
               <button
                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 onClick={() => setShowProfileDropdown((v) => !v)}
@@ -105,7 +112,7 @@ export default function HomeComponent({ user }: { user: any }) {
                     {hasPremium && (
                       <div className="flex items-center gap-1">
                         <Crown className="w-3 h-3 text-yellow-500" />
-                        <span className="text-xs text-yellow-600 font-medium">Premium</span>
+                        <span className="text-xs text-yellow-600 font-medium">{t('premium')}</span>
                       </div>
                     )}
                   </div>
@@ -118,19 +125,19 @@ export default function HomeComponent({ user }: { user: any }) {
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                     onClick={() => { setActiveView('account'); setShowProfileDropdown(false) }}
                   >
-                    <Settings className="w-4 h-4" /> Account Settings
+                    <Settings className="w-4 h-4" /> {t('accountSettings')}
                   </button>
                   <button
                     className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                     onClick={handleLogout}
                   >
-                    <LogOut className="w-4 h-4" /> Sign Out
+                    <LogOut className="w-4 h-4" /> {t('signOut')}
                   </button>
                 </div>
               )}
+              </div>
             </div>
           </div>
-
           {/* Mobile menu button */}
           <div className="lg:hidden">
             <button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setIsSidebarOpen(!isSidebarOpen)} aria-label="Toggle sidebar">
@@ -157,7 +164,7 @@ export default function HomeComponent({ user }: { user: any }) {
             <div className="lg:hidden sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white p-4">
               <div className="flex items-center gap-2">
                 <Image src="/logo.png" alt="Logo" width={28} height={28} className="object-contain" />
-                <span className="text-base font-semibold">Menu</span>
+                <span className="text-base font-semibold">{t('menu')}</span>
               </div>
               <button className="rounded-md p-2 hover:bg-gray-100" onClick={() => setIsSidebarOpen(false)} aria-label="Close sidebar">
                 <span className="sr-only">Close</span>
@@ -169,7 +176,7 @@ export default function HomeComponent({ user }: { user: any }) {
               {navItems.map((item) => (
                 <button
                   key={item.id}
-                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left mb-2 transition-colors ${activeView === item.id ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-md rounded-lg text-left mb-2 transition-colors ${activeView === item.id ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
                   onClick={() => { setActiveView(item.id); setIsSidebarOpen(false) }}
                 >
                   <item.icon className="w-5 h-5" />
@@ -179,6 +186,7 @@ export default function HomeComponent({ user }: { user: any }) {
 
               {/* Mobile profile section */}
               <div className="lg:hidden mt-6 pt-6 border-t border-gray-200">
+                <div className="px-3 py-2 mb-3"><LanguageSwitcher /></div>
                 <div className="flex items-center gap-3 px-3 py-2 mb-2">
                   <img src={user?.profilePicture || '/default-avatar.jpg'} alt="Profile" className="w-10 h-10 rounded-full border object-cover" />
                   <div>
@@ -186,16 +194,16 @@ export default function HomeComponent({ user }: { user: any }) {
                     {hasPremium && (
                       <div className="flex items-center gap-1">
                         <Crown className="w-3 h-3 text-yellow-500" />
-                        <span className="text-xs text-yellow-600 font-medium">Premium</span>
+                        <span className="text-xs text-yellow-600 font-medium">{t('premium')}</span>
                       </div>
                     )}
                   </div>
                 </div>
                 <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-gray-700 hover:bg-gray-50 hover:text-gray-900 mb-1" onClick={() => { setActiveView('account'); setIsSidebarOpen(false) }}>
-                  <Settings className="w-5 h-5" /> Account Settings
+                  <Settings className="w-5 h-5" /> {t('accountSettings')}
                 </button>
                 <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-red-600 hover:bg-red-50" onClick={handleLogout}>
-                  <LogOut className="w-5 h-5" /> Sign Out
+                  <LogOut className="w-5 h-5" /> {t('signOut')}
                 </button>
               </div>
             </nav>

@@ -5,6 +5,7 @@ import { toast } from "react-toastify"
 import { loadStripe } from "@stripe/stripe-js"
 import { createClient } from "@/lib/supabase/client"
 import { Camera, Crown, CreditCard, User, Mail, Save, X } from "lucide-react"
+import { useI18n } from "@/lib/i18n/LocaleProvider"
 
 interface AccountComponentProps {
   user: any
@@ -13,6 +14,7 @@ interface AccountComponentProps {
 }
 
 export default function AccountComponent({ user, hasPremium, onBilling }: AccountComponentProps) {
+  const { t } = useI18n()
   const [profileData, setProfileData] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -47,8 +49,8 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
       if (!publicUrl) throw new Error("no public url")
       setProfileData((prev) => ({ ...prev, profilePicture: publicUrl! }))
     } catch (err) {
-      console.error("upload failed", err)
-      toast.error("Upload failed")
+  console.error("upload failed", err)
+  toast.error(t('uploadFailed'))
     }
     if (publicUrl) {
       try {
@@ -58,10 +60,10 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
           .update({ profilePicture: publicUrl })
           .eq("id", user.id)
         if (dbErr) throw dbErr
-        toast.success("Profile picture updated!", { position: "top-center", autoClose: 1500 })
+        toast.success(t('profilePictureUpdated'), { position: "top-center", autoClose: 1500 })
       } catch (e) {
         console.error("DB update error", e)
-        toast.error("Failed to save profile picture")
+        toast.error(t('failedToSaveProfilePicture'))
       }
     }
     setIsUploadingImage(false)
@@ -77,11 +79,11 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
         .update({ name: profileData.name.trim(), profilePicture: profileData.profilePicture })
         .eq("id", user.id)
       if (error) throw error
-      toast.success("Profile updated", { position: "top-center", autoClose: 1500 })
+      toast.success(t('profileUpdated'), { position: "top-center", autoClose: 1500 })
       window.location.reload()
     } catch (e) {
       console.error("updateProfile error", e)
-      toast.error("Failed to update profile")
+      toast.error(t('failedToUpdateProfile'))
     } finally {
       setIsUpdatingProfile(false)
     }
@@ -103,7 +105,7 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
           try { errBody = await res.text() } catch {}
         }
         console.error("Checkout creation failed:", errBody)
-        toast.error("Checkout creation failed.")
+        toast.error(t('checkoutCreationFailed'))
         return
       }
       const data = await res.json()
@@ -115,7 +117,7 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
       await stripe!.redirectToCheckout({ sessionId: data.id })
     } catch (e) {
       console.error("handleBilling error", e)
-      toast.error("Billing failed")
+      toast.error(t('billingFailed'))
     } finally {
       setIsProcessing(false)
     }
@@ -124,11 +126,11 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
   // Change password handler
   const handleChangePassword = async () => {
     if (!newPassword || newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters")
+      toast.error(t('passwordTooShort'))
       return
     }
     if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match")
+      toast.error(t('passwordsDoNotMatch'))
       return
     }
     try {
@@ -138,10 +140,10 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
       if (error) throw error
       setNewPassword("")
       setConfirmPassword("")
-      toast.success("Password updated successfully", { position: "top-center", autoClose: 1500 })
+      toast.success(t('passwordUpdated'), { position: "top-center", autoClose: 1500 })
     } catch (e) {
       console.error("changePassword error", e)
-      toast.error("Failed to update password")
+      toast.error(t('failedToUpdatePassword'))
     } finally {
       setIsChangingPassword(false)
     }
@@ -150,16 +152,14 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Account Settings</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Manage your profile information, billing, and premium subscription.
-        </p>
+        <h1 className="text-2xl font-semibold text-gray-900">{t('accountSettingsTitle')}</h1>
+        <p className="mt-2 text-sm text-gray-600">{t('accountSettingsSubtitle')}</p>
       </div>
 
       {/* Profile Information Card */}
       <div className="rounded-lg border bg-white">
         <div className="p-6 border-b">
-          <h2 className="text-lg font-medium text-gray-900">Profile Information</h2>
+          <h2 className="text-lg font-medium text-gray-900">{t('profileInformation')}</h2>
         </div>
         <div className="p-6 space-y-6">
           {/* Profile Picture */}
@@ -178,15 +178,15 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="absolute bottom-0 right-0 p-2 bg-green-600 text-white rounded-full hover:bg-green-700 shadow-lg"
-                title="Change profile picture"
+                title={t('changeProfilePictureTitle')}
               >
                 <Camera className="w-4 h-4" />
               </button>
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-700">Profile Picture</h3>
+              <h3 className="text-sm font-medium text-gray-700">{t('profilePicture')}</h3>
               <p className="text-sm text-gray-500 mt-1">
-                {isUploadingImage ? "Uploading image..." : "Click the camera icon to change your photo"}
+                {isUploadingImage ? t('uploadingImage') : t('changePhotoHint')}
               </p>
             </div>
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleProfileImageChange} className="hidden" />
@@ -196,14 +196,14 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <User className="w-4 h-4 inline mr-2" />
-              Display Name
+              {t('displayName')}
             </label>
             <input
               type="text"
               value={profileData.name}
               onChange={(e) => setProfileData((prev) => ({ ...prev, name: e.target.value }))}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-              placeholder="Enter your name"
+              placeholder={t('displayName')}
             />
           </div>
 
@@ -211,7 +211,7 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <Mail className="w-4 h-4 inline mr-2" />
-              Email Address
+              {t('emailAddress')}
             </label>
             <input
               type="email"
@@ -219,7 +219,7 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
               disabled
               className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed"
             />
-            <p className="text-xs text-slate-500 mt-1">Email cannot be changed</p>
+            <p className="text-xs text-slate-500 mt-1">{t('emailCannotBeChanged')}</p>
           </div>
 
           {/* Save Button */}
@@ -232,12 +232,12 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
               {isUpdatingProfile ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Updating...
+                  {t('updating')}
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  Save Changes
+                  {t('saveChanges')}
                 </>
               )}
             </button>
@@ -248,7 +248,7 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
       {/* Billing & Subscription Card */}
       <div className="rounded-lg border bg-white">
         <div className="p-6 border-b">
-          <h2 className="text-lg font-medium text-gray-900">Billing & Subscription</h2>
+          <h2 className="text-lg font-medium text-gray-900">{t('billingSubscription')}</h2>
         </div>
         <div className="p-6 space-y-4">
           {/* Premium Status */}
@@ -256,15 +256,15 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
             <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <Crown className="w-6 h-6 text-yellow-500" />
               <div>
-                <div className="font-medium text-yellow-800">Premium Subscriber</div>
-                <div className="text-sm text-yellow-600">You have access to all premium features</div>
+                <div className="font-medium text-yellow-800">{t('premiumSubscriber')}</div>
+                <div className="text-sm text-yellow-600">{t('premiumSubscriberDesc')}</div>
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
               <div>
-                <div className="font-medium text-gray-800">Free Plan</div>
-                <div className="text-sm text-gray-600">Upgrade to premium for advanced features</div>
+                <div className="font-medium text-gray-800">{t('freePlan')}</div>
+                <div className="text-sm text-gray-600">{t('freePlanDesc')}</div>
               </div>
             </div>
           )}
@@ -277,14 +277,14 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
             >
               <CreditCard className="w-4 h-4" />
-              {isProcessing ? "Loading..." : "Manage Billing"}
+              {isProcessing ? t('loading') : t('manageBilling')}
             </button>
             <button
               onClick={() => setShowPremiumModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:opacity-90"
             >
               <Crown className="w-4 h-4" />
-              {hasPremium ? "Premium Details" : "Upgrade to Premium"}
+              {hasPremium ? t('premiumDetails') : t('upgradeToPremium')}
             </button>
           </div>
         </div>
@@ -293,28 +293,28 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
       {/* Change Password Card */}
       <div className="rounded-lg border bg-white">
         <div className="p-6 border-b">
-          <h2 className="text-lg font-medium text-gray-900">Change Password</h2>
-          <p className="mt-1 text-sm text-gray-500">Use at least 8 characters. You will stay signed in on this device.</p>
+          <h2 className="text-lg font-medium text-gray-900">{t('changePassword')}</h2>
+          <p className="mt-1 text-sm text-gray-500">{t('changePasswordHint')}</p>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('newPassword')}</label>
             <input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-              placeholder="Enter a new password"
+              placeholder={t('newPassword')}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('confirmNewPassword')}</label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-              placeholder="Re-enter the new password"
+              placeholder={t('confirmNewPassword')}
             />
           </div>
           <div className="flex justify-end">
@@ -323,7 +323,7 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
               disabled={isChangingPassword}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50"
             >
-              {isChangingPassword ? "Updating..." : "Update Password"}
+              {isChangingPassword ? t('updatingPassword') : t('updatePassword')}
             </button>
           </div>
         </div>
@@ -337,7 +337,7 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                   <Crown className="w-6 h-6 text-yellow-500" />
-                  Premium Subscription
+                  {t('premiumSubscription')}
                 </h2>
                 <button onClick={() => setShowPremiumModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
                   <X className="w-5 h-5 text-slate-500" />
@@ -347,32 +347,30 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
             <div className="p-6">
               {hasPremium ? (
                 <div>
-                  <p className="text-lg text-gray-700 mb-4">You are a premium user.</p>
+                  <p className="text-lg text-gray-700 mb-4">{t('youArePremium')}</p>
                   <div className="flex flex-col gap-4">
-                    <h3 className="font-semibold text-gray-900">Premium Features:</h3>
+                    <h3 className="font-semibold text-gray-900">{t('premiumFeatures')}</h3>
                     <ul className="list-disc list-inside space-y-2 text-gray-700">
-                      <li>Advanced expense analytics</li>
-                      <li>Unlimited expense history</li>
-                      <li>Priority support</li>
-                      <li>Export reports</li>
+                      <li>{t('advancedExpenseAnalytics')}</li>
+                      <li>{t('unlimitedExpenseHistory')}</li>
+                      <li>{t('prioritySupport')}</li>
+                      <li>{t('exportReports')}</li>
                     </ul>
                   </div>
                 </div>
               ) : (
                 <div>
-                  <p className="text-lg text-gray-700 mb-4">Upgrade to Premium to unlock all features!</p>
+                  <p className="text-lg text-gray-700 mb-4">{t('upgradeToPremium')}</p>
                   <div className="flex flex-col gap-4">
-                    <h3 className="font-semibold text-gray-900">Premium Features:</h3>
+                    <h3 className="font-semibold text-gray-900">{t('premiumFeatures')}</h3>
                     <ul className="list-disc list-inside space-y-2 text-gray-700">
-                      <li>Advanced expense analytics</li>
-                      <li>Unlimited expense history</li>
-                      <li>Priority support</li>
-                      <li>Export reports</li>
+                      <li>{t('advancedExpenseAnalytics')}</li>
+                      <li>{t('unlimitedExpenseHistory')}</li>
+                      <li>{t('prioritySupport')}</li>
+                      <li>{t('exportReports')}</li>
                     </ul>
                     <Link href="/upgrade" onClick={() => setShowPremiumModal(false)}>
-                      <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-semibold hover:opacity-90">
-                        Upgrade Now
-                      </button>
+                      <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-semibold hover:opacity-90">{t('upgradeToPremiumCta')}</button>
                     </Link>
                   </div>
                 </div>
@@ -383,7 +381,7 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
                 onClick={() => setShowPremiumModal(false)}
                 className="w-full px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
               >
-                Close
+                {t('closeModal')}
               </button>
             </div>
           </div>

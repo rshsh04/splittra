@@ -107,7 +107,7 @@ export default function UpgradePage() {
 			</section>
 
 			{/* Pricing Card */}
-			<section className="py-16 px-4 bg-gradient-to-b from-green-50 to-gray-50">
+			<section className="py-10 px-4 bg-gradient-to-b from-green-50 to-gray-50">
 				<div className="max-w-md mx-auto">
 					<div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 relative overflow-hidden">
 						{/* Premium Badge */}
@@ -118,8 +118,8 @@ export default function UpgradePage() {
 							</div>
 						</div>
 
-						<div className="text-center mb-8">
-							<h3 className="text-2xl font-bold text-gray-900 mb-4">SplitIt Premium</h3>
+						<div className="text-center mb-6">
+							<h3 className="text-2xl font-bold text-gray-900 mb-4">Splittra Premium</h3>
 
 							<div className="mb-4">
 								<div className="flex items-baseline justify-center gap-1">

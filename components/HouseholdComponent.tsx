@@ -1,13 +1,15 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
-import { Edit2, LogOut, Crown } from "lucide-react"
-import { toast } from "react-toastify"
+import { Edit2, LogOut, Crown, MoreVertical } from "lucide-react"
+import { toast, ToastContainer } from "react-toastify"
+import { useI18n } from "@/lib/i18n/LocaleProvider"
 
 interface HouseholdComponentProps {
   user: any
 }
 
 export default function HouseholdComponent({ user }: HouseholdComponentProps) {
+  const { t } = useI18n()
   const [householdName, setHouseholdName] = useState("Household")
   const [householdCode, setHouseholdCode] = useState("")
   const [householdMembers, setHouseholdMembers] = useState<any[]>([])
@@ -15,6 +17,8 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [isEditingName, setIsEditingName] = useState(false)
   const [editNameValue, setEditNameValue] = useState("")
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
+  const [confirmState, setConfirmState] = useState<{ type: 'remove' | 'transfer' | 'leave' | null, memberId?: string, memberName?: string }>({ type: null })
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isSavingName, setIsSavingName] = useState(false)
@@ -44,7 +48,7 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
           return
         }
         if (!mounted) return
-        setHouseholdName(household.household_name || household.householdName || "Household")
+  setHouseholdName(household.household_name || household.householdName || t('defaultHouseholdName'))
         setHouseholdCode(household.code || "")
         const ownerId = household.owner_id ?? household.ownerId ?? household.owner
         setHouseholdOwnerId(ownerId ? String(ownerId) : "")
@@ -60,8 +64,8 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
           setHouseholdMembers([])
         }
       } catch (e) {
-        console.error('fetchHousehold error', e)
-        setLoadError('Failed to load household data.')
+  console.error('fetchHousehold error', e)
+  setLoadError(t('failedToLoadHouseholdData'))
       } finally {
         setIsLoading(false)
       }
@@ -94,11 +98,11 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
     try {
       const nextName = editNameValue.trim()
       if (!nextName) {
-        toast.error('Household name cannot be empty')
+        toast.error(t('householdNameEmpty'))
         return
       }
       if (nextName.length > 60) {
-        toast.error('Household name is too long (max 60)')
+        toast.error(t('householdNameTooLong'))
         return
       }
       if (nextName === householdName) {
@@ -115,10 +119,10 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
       }
       setHouseholdName(nextName)
       setIsEditingName(false)
-      toast.success('Household name updated', { position: 'top-center', autoClose: 1500 })
+      toast.success(t('householdNameUpdated'), { position: 'top-center', autoClose: 1500 })
     } catch (e) {
       console.error('saveHouseholdName error', e)
-      toast.error('Failed to update name')
+      toast.error(t('failedToUpdateName'))
     } finally {
       setIsSavingName(false)
     }
@@ -140,20 +144,32 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
         document.execCommand('copy')
         document.body.removeChild(textarea)
       }
-      toast.success('Invite code copied', { position: 'top-center', autoClose: 1200 })
+      toast.success(t('inviteCodeCopied'), { position: 'top-center', autoClose: 1200 })
     } catch (e) {
-      toast.error('Copy failed')
+      toast.error(t('copyFailed'))
+    }
+  }
+
+  const copyInviteLink = async () => {
+    try {
+      const base = typeof window !== 'undefined' ? window.location.origin : ''
+      if (!householdCode) return
+      const url = `${base}/join?code=${encodeURIComponent(householdCode)}`
+      await navigator.clipboard.writeText(url)
+      toast.success(t('inviteLinkCopied') || 'Invite link copied', { position: 'top-center', autoClose: 1200 })
+    } catch {
+      toast.error(t('copyFailed'))
     }
   }
 
   const handleRemoveMember = async (memberId: string) => {
     try {
       if (String(user?.id) !== String(householdOwnerId)) {
-        toast.error('Only the owner can remove members')
+        toast.error(t('onlyOwnerCanRemoveMembers'))
         return
       }
       if (String(memberId) === String(householdOwnerId)) {
-        toast.error('Cannot remove the owner')
+        toast.error(t('cannotRemoveOwner'))
         return
       }
       if (processingRemoveId) return
@@ -166,23 +182,36 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
       if (uErr) throw uErr
       setHouseholdMembers((prev) => prev.filter((m) => String(m.id) !== String(memberId)))
       setPendingRemoveId(null)
-      toast.success('Member removed!', { position: 'top-center', autoClose: 1500 })
+      toast.success(t('memberRemoved'), { position: 'top-center', autoClose: 1500 })
     } catch (e) {
       console.error('remove member error', e)
-      toast.error('Failed to remove member')
+      toast.error(t('failedToRemoveMember'))
       setPendingRemoveId(null)
     } finally {
       setProcessingRemoveId(null)
     }
   }
 
+  const handleTransferOwnership = async (memberId: string) => {
+    try {
+      if (String(user?.id) !== String(householdOwnerId)) {
+        toast.error(t('onlyOwnerCanTransfer'))
+        return
+      }
+      if (String(memberId) === String(householdOwnerId)) return
+      const supabase = require('@/lib/supabase/client').createClient();
+      const { error } = await supabase.from('household').update({ owner_id: memberId }).eq('id', user.household_id)
+      if (error) throw error
+      setHouseholdOwnerId(String(memberId))
+      toast.success(t('ownershipTransferred'), { position: 'top-center', autoClose: 1500 })
+    } catch (e) {
+      console.error('transfer ownership error', e)
+      toast.error(t('failedToTransferOwnership'))
+    }
+  }
+
   const handleLeaveHousehold = async () => {
     try {
-      const hasOthers = householdMembers.some(m => String(m.id) !== String(user?.id))
-      const isOwner = String(user?.id) === String(householdOwnerId)
-      const baseMsg = 'Are you sure you want to leave the household?'
-      const ownerMsg = 'You are the owner. Leaving may affect other members. Proceed?'
-      if (!confirm(isOwner && hasOthers ? ownerMsg : baseMsg)) return
       if (isLeaving) return
       setIsLeaving(true)
       const supabase = require('@/lib/supabase/client').createClient();
@@ -191,19 +220,24 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
       if (hErr) throw hErr
       const { error: uErr } = await supabase.from('users').update({ household_id: null }).eq('id', user.id)
       if (uErr) throw uErr
-      toast.success('You left the household', { position: 'top-center', autoClose: 1500 })
+      toast.success(t('youLeftHousehold'), { position: 'top-center', autoClose: 1500 })
       if (typeof window !== 'undefined') window.location.reload()
     } catch (e) {
       console.error('leave household error', e)
-      toast.error('Failed to leave household')
+      toast.error(t('failedToLeaveHousehold'))
     } finally {
       setIsLeaving(false)
     }
   }
 
   return (
+    <>
     <div className="rounded-lg border bg-white">
       <div className="p-4 border-b">
+        <ToastContainer 
+          position="top-center"
+          autoClose={1500}
+          theme="colored"/>
         {isEditingName ? (
           <div className="flex items-center gap-2 w-full">
             <input
@@ -213,14 +247,14 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
               onKeyDown={handleNameKeyPress}
               className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
             />
-            <button disabled={isSavingName} onClick={saveHouseholdName} className="px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-md text-sm">{isSavingName ? 'Saving…' : 'Save'}</button>
-            <button disabled={isSavingName} onClick={cancelEditingName} className="px-3 py-2 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-slate-700 rounded-md text-sm">Cancel</button>
+            <button disabled={isSavingName} onClick={saveHouseholdName} className="px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-md text-sm">{isSavingName ? t('saving') : t('save')}</button>
+            <button disabled={isSavingName} onClick={cancelEditingName} className="px-3 py-2 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-slate-700 rounded-md text-sm">{t('cancelAction')}</button>
           </div>
         ) : (
           <div className="flex items-center justify-between w-full">
             <div className="font-medium truncate">{householdName}</div>
             {String(user?.id) === String(householdOwnerId) && (
-              <button onClick={startEditingName} title="Edit household name" className="p-2 rounded hover:bg-slate-100">
+              <button onClick={startEditingName} title={t('editHouseholdName')} className="p-2 rounded hover:bg-slate-100">
                 <Edit2 className="w-4 h-4 text-slate-600" />
               </button>
             )}
@@ -229,54 +263,114 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
       </div>
       <div className="p-4">
         {isLoading && (
-          <div className="text-sm text-slate-500">Loading household…</div>
+          <div className="text-sm text-slate-500">{t('loadingHousehold')}</div>
         )}
         {loadError && !isLoading && (
           <div className="mb-3 p-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded">{loadError}</div>
         )}
-        <div className="font-semibold text-slate-800 mb-2">Members</div>
+        <div className="font-semibold text-slate-800 mb-2">{t('members')}</div>
         <ul className="space-y-2">
           {householdMembers.map((member) => (
-            <li key={member.id} className={`flex items-center justify-between p-2 rounded-md border ${String(member.id) === String(householdOwnerId) ? 'bg-white border-gray-300' : 'bg-white border-slate-200'}`}>
+            <li key={member.id} className={`flex items-center justify-between p-2 rounded-md border relative ${String(member.id) === String(householdOwnerId) ? 'bg-white border-gray-300' : 'bg-white border-slate-200'}`}>
               <div className="flex items-center gap-2">
                 <img src={member.profilePicture || "/default-avatar.jpg"} alt={member.name} className="w-8 h-8 rounded-full border" />
                 <span className={`font-medium ${String(member.id) === String(householdOwnerId) ? 'text-yellow-700' : 'text-slate-800'}`}>{member.name || member.email}</span>
                 {String(member.id) === String(householdOwnerId) && <Crown className="w-4 h-4 text-yellow-500" />}
               </div>
               {String(user?.id) === String(householdOwnerId) && String(member.id) !== String(householdOwnerId) && (
-                pendingRemoveId === String(member.id) ? (
+                <div className="relative">
                   <button
-                    disabled={processingRemoveId === String(member.id)}
-                    className="text-red-600 bg-red-100 border border-red-300 px-2 py-1 rounded font-bold disabled:opacity-50"
-                    onClick={() => handleRemoveMember(String(member.id))}
+                    className="p-2 rounded hover:bg-slate-100"
+                    onClick={() => setMenuOpenId(prev => prev === String(member.id) ? null : String(member.id))}
+                    aria-label="Member actions"
                   >
-                    {processingRemoveId === String(member.id) ? 'Removing…' : 'Sure?'}
+                    <MoreVertical className="w-5 h-5 text-slate-600" />
                   </button>
-                ) : (
-                  <button className="text-red-600 hover:text-red-800 px-2 py-1 rounded border border-red-200 bg-red-50 hover:bg-red-100" onClick={() => setPendingRemoveId(String(member.id))}>Remove</button>
-                )
+                  {menuOpenId === String(member.id) && (
+                    <div className="absolute right-0 mt-2 w-44 bg-white border border-slate-200 rounded-md shadow-md z-10">
+                      <button
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
+                        onClick={() => { setConfirmState({ type: 'transfer', memberId: String(member.id), memberName: member.name || member.email }); setMenuOpenId(null) }}
+                      >
+                        {t('transferOwnership')}
+                      </button>
+                      <button
+                        className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                        onClick={() => { setConfirmState({ type: 'remove', memberId: String(member.id), memberName: member.name || member.email }); setMenuOpenId(null) }}
+                      >
+                        {t('removeMember')}
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </li>
           ))}
-          {householdMembers.length === 0 && <li className="text-slate-500 text-sm">No members found</li>}
+          {householdMembers.length === 0 && <li className="text-slate-500 text-sm">{t('noMembersFound')}</li>}
         </ul>
 
         {householdCode && (
           <button className="w-full text-left px-3 py-2 mt-3 hover:bg-slate-50 text-slate-700 border rounded-md" onClick={copyHouseholdCode}>
             <div className="flex items-center justify-between">
-              <span className="text-sm">Invite Code</span>
+              <span className="text-sm">{t('inviteCode')}</span>
               <span className="font-mono text-sm bg-slate-100 px-2 py-1 rounded">{householdCode}</span>
             </div>
-            <div className="text-xs text-slate-500 mt-1">Click to copy</div>
+            <div className="text-xs text-slate-500 mt-1">{t('clickToCopy')}</div>
+          </button>
+        )}
+        {householdCode && (
+          <button className="w-full text-left px-3 py-2 mt-3 hover:bg-slate-50 text-slate-700 border rounded-md" onClick={copyInviteLink}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm">{t('copyInviteLink') || 'Copy Invite Link'}</span>
+              </div>
+              <span className="text-xs text-slate-500">{t('clickToCopy')}</span>
+            </div>
           </button>
         )}
 
         <div className="mt-4 border-t pt-3">
-          <button disabled={isLeaving} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-md flex items-center gap-3" onClick={handleLeaveHousehold}>
-            <LogOut className="w-4 h-4" /> {isLeaving ? 'Leaving…' : 'Leave Household'}
+          <button disabled={isLeaving} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-md flex items-center gap-3" onClick={() => setConfirmState({ type: 'leave' })}>
+            <LogOut className="w-4 h-4" /> {isLeaving ? t('leaving') : t('leaveHousehold')}
           </button>
         </div>
       </div>
     </div>
+    {/* Confirm Modals */}
+    {confirmState.type && (
+      <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm bg-white rounded-lg shadow-lg border">
+          <div className="p-4 border-b">
+            {confirmState.type === 'remove' && <div className="text-base font-semibold">{t('removeMember')}</div>}
+            {confirmState.type === 'transfer' && <div className="text-base font-semibold">{t('transferOwnership')}</div>}
+            {confirmState.type === 'leave' && <div className="text-base font-semibold">{t('leaveHouseholdTitle')}</div>}
+          </div>
+          <div className="p-4 space-y-2 text-sm text-slate-700">
+            {confirmState.type === 'remove' && (
+              <p>{t('removeMemberConfirm')}<span className="font-medium">{confirmState.memberName}</span>{t('removeMemberConfirmSuffix')}</p>
+            )}
+            {confirmState.type === 'transfer' && (
+              <p>{t('transferOwnershipConfirm')}<span className="font-medium">{confirmState.memberName}</span>{t('transferOwnershipConfirmSuffix')}</p>
+            )}
+            {confirmState.type === 'leave' && (
+              <p>{t('leaveHouseholdConfirm')}</p>
+            )}
+          </div>
+          <div className="p-4 border-t flex justify-end gap-2">
+            <button className="px-3 py-2 text-sm rounded-md border hover:bg-slate-50" onClick={() => setConfirmState({ type: null })}>{t('cancel')}</button>
+            {confirmState.type === 'remove' && (
+              <button className="px-3 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700" onClick={async () => { await handleRemoveMember(String(confirmState.memberId)); setConfirmState({ type: null }) }}>{t('removeMember')}</button>
+            )}
+            {confirmState.type === 'transfer' && (
+              <button className="px-3 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700" onClick={async () => { await handleTransferOwnership(String(confirmState.memberId)); setConfirmState({ type: null }) }}>{t('transferOwnership')}</button>
+            )}
+            {confirmState.type === 'leave' && (
+              <button disabled={isLeaving} className="px-3 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50" onClick={async () => { await handleLeaveHousehold(); setConfirmState({ type: null }) }}>{t('leaveHousehold')}</button>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

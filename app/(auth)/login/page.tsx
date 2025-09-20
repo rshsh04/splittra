@@ -6,7 +6,7 @@ import { TbPassword } from 'react-icons/tb'
 import { Bounce, ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Header from '@/components/header'
 import LoadingScreen from '@/components/LoadingScreen'
 import Footer from '@/components/footer'
@@ -18,14 +18,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const router = useRouter()
   const { user, loading } = useSupabaseUser()
+  const search = useSearchParams()
+  const nextPath = search?.get('next') || '/dashboard'
   const supabase = createClient()
 
   // Redirect if already logged in
   useEffect(() => {
     if (!loading && user) {
-      router.push('/dashboard')
+      router.push(nextPath)
     }
-  }, [user, loading, router])
+  }, [user, loading, router, nextPath])
   if (loading) {
     return <LoadingScreen />
   }
@@ -62,12 +64,12 @@ export default function LoginPage() {
       toast.error(error.message)
       return
     }
-    router.push('/dashboard')
+    router.push(nextPath)
   }
 
   const handleGoogleLogin = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: typeof window !== 'undefined' ? window.location.origin + '/dashboard' : '' } })
+  const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: typeof window !== 'undefined' ? window.location.origin + (nextPath || '/dashboard') : '' } })
       if (error) toast.error(error.message)
     } catch (err: any) {
       toast.error(err?.message || 'Google login failed')
