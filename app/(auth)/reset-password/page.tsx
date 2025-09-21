@@ -1,8 +1,7 @@
 'use client'
 import { useState } from 'react'
 
-import { Bounce, ToastContainer, toast } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
+import { toast } from 'react-toastify'
 import Header from '@/components/header'
 import Footer from '@/components/footer'
 import { createClient } from '@/lib/supabase/client'
@@ -37,20 +36,6 @@ export default function ResetPasswordPage() {
 
   return (
     <>
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        limit={3}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick={false}
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-        transition={Bounce}
-      />
       <Header />
       <div className="min-h-screen flex items-center justify-center bg-base-300 px-4">
         <div className="bg-base-200 rounded-2xl shadow-2xl py-10 px-8 flex flex-col items-center w-full max-w-md overflow-hidden border border-base-300">

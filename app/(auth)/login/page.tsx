@@ -1,10 +1,9 @@
 
 'use client'
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import Image from 'next/image'
 import { TbPassword } from 'react-icons/tb'
-import { Bounce, ToastContainer, toast } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
+import { toast } from 'react-toastify'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Header from '@/components/header'
@@ -13,7 +12,7 @@ import Footer from '@/components/footer'
 import { createClient } from '@/lib/supabase/client'
 import useSupabaseUser from '@/hooks/useSupabaseUser'
 
-export default function LoginPage() {
+function LoginPageInner() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const router = useRouter()
@@ -79,20 +78,6 @@ export default function LoginPage() {
 
   return (
     <>
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        limit={3}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick={false}
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-        transition={Bounce}
-      />
       <Header />
       <div className="min-h-screen flex items-center justify-center bg-base-300 px-4">
         <div className="bg-base-200 rounded-2xl shadow-xl py-8 flex flex-col md:flex-row items-center w-full max-w-5xl overflow-hidden">
@@ -171,6 +156,28 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+      <Footer />
+    </>
+  )
+}
+
+function LoginFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-base-300 px-4">
+      <div className="bg-base-200 rounded-2xl shadow-xl py-8 w-full max-w-md text-center">
+        <h2 className="text-xl font-semibold">Loading…</h2>
+      </div>
+    </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <>
+      <Header />
+      <Suspense fallback={<LoginFallback />}>
+        <LoginPageInner />
+      </Suspense>
       <Footer />
     </>
   )

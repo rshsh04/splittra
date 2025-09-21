@@ -5,7 +5,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
 import { createClient } from "@/lib/supabase/client" 
 import { useExpenses } from "@/lib/useExpenses"
 import { PlusCircle, Trash2, Edit3, Save, X } from "lucide-react"
-import { toast, ToastContainer } from "react-toastify"
+import { toast } from "react-toastify"
 import jsPDF from "jspdf"
 import { getUserSubscription } from "@/lib/premiumCheck"
 import { useI18n } from "@/lib/i18n/LocaleProvider"
@@ -107,7 +107,7 @@ export default function Expenses({ user }: { user: any }) {
       name,
       price: parseFloat(price),
       info,
-      household_id: user.household_id,
+      household_id: user.current_household_id,
       userId: user.id,
       isLoan,
     }
@@ -203,7 +203,7 @@ export default function Expenses({ user }: { user: any }) {
 
   // Clear all expenses
   const handleClearExpenses = async () => {
-    await clearExpensesService(user.household_id)
+  await clearExpensesService(user.current_household_id)
     loadExpenses()
   }
 
@@ -268,7 +268,7 @@ export default function Expenses({ user }: { user: any }) {
 const supabase= createClient();
 
   useEffect(() => {
-    const household_id =  user?.household_id
+    const household_id =  user?.current_household_id
     console.log("Setting up subscription for household_id:", household_id)
     if (!household_id) return
     loadExpenses()
@@ -280,7 +280,8 @@ const supabase= createClient();
         'postgres_changes',
         {
           event: '*',
-          schema: 'public', 
+          schema: 'public',
+          table: 'expenses',
           filter: `household_id=eq.${household_id}`,
         },
         (payload) => {
@@ -292,19 +293,19 @@ const supabase= createClient();
       .subscribe()
 
     // Realtime subscription for users (household members) changes
+    // Members now live in household_members; subscribe to that
     const usersChannel = supabase
-      .channel(`users-changes-household-${household_id}`)
+      .channel(`household-members-changes-${household_id}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'users',
+          table: 'household_members',
           filter: `household_id=eq.${household_id}`,
         },
         (payload) => {
-          console.log('Users payload:', payload)
-          // Refresh expenses and user map when member data changes
+          console.log('Household members payload:', payload)
           loadExpenses()
         }
       )
@@ -314,14 +315,13 @@ const supabase= createClient();
       try { channel.unsubscribe() } catch (e) {}
       try { usersChannel.unsubscribe() } catch (e) {}
     }
-  }, [user?.household_id])
+  }, [user?.current_household_id])
 
 
   const { balances, message, totalRegular, totalLoans } = calculateBalances()
 
   return (
     <section className="flex-1 p-4 lg:p-8">
-      <ToastContainer position="top-center" autoClose={5000} />
       <div className="max-w-7xl mx-auto">
   <h1 className="text-lg lg:text-2xl font-medium mb-6">{t('householdExpenses')}</h1>
 
@@ -425,7 +425,7 @@ const supabase= createClient();
                             payload = {
                               name: `Settlement to ${b.name}`,
                               price: amt,
-                              household_id: user.household_id,
+                              household_id: user.current_household_id,
                               userId: user.id,
                               isLoan: true,
                               loanRecipientId: b.uid,
@@ -434,7 +434,7 @@ const supabase= createClient();
                             payload = {
                               name: `Settlement from ${b.name}`,
                               price: amt,
-                              household_id: user.household_id,
+                              household_id: user.current_household_id,
                               userId: b.uid,
                               isLoan: true,
                               loanRecipientId: user.id,

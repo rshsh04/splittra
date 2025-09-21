@@ -44,3 +44,9 @@ next-env.d.ts
 .flaskenv*
 !.env.project
 !.env.vault
+db/migrations/
+db/migrations/20250921_cleanup_legacy_household_columns.sql
+db/migrations/20250921_create_household_members.sql
+db/migrations/20250921_household_members_rls_fix.sql
+db/migrations/20250921_household_members_rls.sql
+db/migrations/tables schema

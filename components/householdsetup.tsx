@@ -2,12 +2,11 @@
  import { ReactNode, useState } from 'react'
  import { Home, Users, Copy, Plus, LogOut } from 'lucide-react'
  import Header from './header';
- import {
-   fetchHouseholdByOwner,
-   fetchHouseholdByCode,
-   updateHouseholdMembers,
-   updateUserHousehold,
- } from '@/lib/expensesService'
+import {
+  fetchHouseholdByOwner,
+  fetchHouseholdByCode,
+  setCurrentHousehold,
+} from '@/lib/expensesService'
 
 export default function HouseholdSetup({ user, children }: { user: any; children?: ReactNode }) {
   const [inviteCode, setInviteCode] = useState<string | null>(null)
@@ -34,14 +33,18 @@ export default function HouseholdSetup({ user, children }: { user: any; children
         .insert({
           code,
           owner_id: user.id,
-          members: [user.id],
           householdName: `${user.name}'s Household`
         })
         .select()
         .maybeSingle();
       if (createErr) throw createErr;
-      // Update user row with household_id via helper
-      await updateUserHousehold(user.id, household.id)
+      // Insert owner into membership table
+      const { error: insErr } = await supabase
+        .from('household_members')
+        .insert({ household_id: household.id, user_id: user.id, role: 'owner' })
+      if (insErr) throw insErr
+      // Set current household
+      await setCurrentHousehold(user.id, household.id)
       setInviteCode(household.code)
     } catch (err: any) {
       alert(`Failed to create household: ${err.message || err}`)
@@ -55,7 +58,7 @@ export default function HouseholdSetup({ user, children }: { user: any; children
       alert('Please enter an invite code.')
       return
     }
-    if (user.household_id) {
+    if (user.current_household_id) {
       alert('You are already in a household!')
       return
     }
@@ -67,21 +70,21 @@ export default function HouseholdSetup({ user, children }: { user: any; children
         return
       }
       // Check if user is already a member
-      if (household?.members?.includes(user.id)) {
-        alert("You are already a member of this household!")
-        return
+      const supabase = (await import('@/lib/supabase/client')).createClient()
+      const { data: exists, error: exErr } = await supabase
+        .from('household_members')
+        .select('user_id')
+        .eq('household_id', household.id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (exErr) throw exErr
+      if (!exists) {
+        const { error: insErr } = await supabase
+          .from('household_members')
+          .insert({ household_id: household.id, user_id: user.id })
+        if (insErr) throw insErr
       }
-
-      // Add user to members array
-      // normalize members safely and update from the client
-      const members = Array.isArray(household.members) ? household.members : []
-      if (members.includes(user.id)) {
-        alert("You are already a member")
-        return
-      }
-      const newMembers = Array.from(new Set([...members, user.id])) // avoid duplicates
-      await updateHouseholdMembers(household.id, newMembers)
-      await updateUserHousehold(user.id, household.id)
+      await setCurrentHousehold(user.id, household.id)
       window.location.reload()
     } catch (err: any) {
       alert(err.message || 'Failed to join household.')

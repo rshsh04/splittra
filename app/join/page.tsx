@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Header from '@/components/header'
 import Footer from '@/components/footer'
@@ -8,6 +8,30 @@ import useSupabaseUser from '@/hooks/useSupabaseUser'
 import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 export default function JoinPage() {
+  return (
+    <Suspense fallback={<JoinFallback />}> 
+      <JoinPageInner />
+    </Suspense>
+  )
+}
+
+function JoinFallback() {
+  const { t } = { t: (k: string) => k }
+  return (
+    <div className="min-h-screen flex flex-col bg-white">
+      <Header />
+      <main className="flex-1 flex items-center justify-center bg-base-300 px-4">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 max-w-lg w-full text-center">
+          <h1 className="text-2xl font-bold mb-3">{t('joinHousehold') || 'Join Household'}</h1>
+          <p className="text-gray-600 mb-6">Loading…</p>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  )
+}
+
+function JoinPageInner() {
   const router = useRouter()
   const search = useSearchParams()
   const code = useMemo(() => (search?.get('code') || '').trim(), [search])
@@ -47,31 +71,30 @@ export default function JoinPage() {
         }
 
         const userId = user.id
-        if (String(user.household_id || '') === String(household.id)) {
+        if (String(user.current_household_id || '') === String(household.id)) {
           router.replace('/dashboard')
           return
         }
 
-        const members: any[] = Array.isArray(household.members) ? household.members : []
-        if (members.map(String).includes(String(userId))) {
-          // Already in members; make sure user.household_id set
-          await supabase.from('users').update({ household_id: household.id }).eq('id', userId)
-          router.replace('/dashboard')
-          return
+        // Check membership via household_members
+        const { data: existing, error: existErr } = await supabase
+          .from('household_members')
+          .select('user_id')
+          .eq('household_id', household.id)
+          .eq('user_id', userId)
+          .maybeSingle()
+        if (existErr) throw existErr
+        if (!existing) {
+          const { error: insErr } = await supabase
+            .from('household_members')
+            .insert({ household_id: household.id, user_id: userId })
+          if (insErr) throw insErr
         }
 
-        const newMembers = [...members, userId]
-        const { error: updateErr } = await supabase
-          .from('household')
-          .update({ members: newMembers })
-          .eq('id', household.id)
-        if (updateErr) throw updateErr
-
-        const { error: userErr } = await supabase
-          .from('users')
-          .update({ household_id: household.id })
-          .eq('id', userId)
-        if (userErr) throw userErr
+        // Set as current if not set
+        if (!user.current_household_id) {
+          await supabase.from('users').update({ current_household_id: household.id }).eq('id', userId)
+        }
 
         setMessage(t('joinSuccess') || 'Joined household successfully. Redirecting...')
         router.replace('/dashboard')

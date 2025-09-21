@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import Header from '@/components/header'
-import { Bounce, ToastContainer, toast } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
+import { toast } from 'react-toastify'
 import { useRouter } from 'next/navigation'
 import useSupabaseUser from '@/hooks/useSupabaseUser'
 import LoadingScreen from '@/components/LoadingScreen'
@@ -120,20 +119,6 @@ export default function SignupPage() {
 
   return (
     <>
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        limit={3}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick={false}
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-        transition={Bounce}
-      />
       <Header />
       <div className="min-h-screen flex items-center justify-center bg-base-300 px-4 relative">
         {/* Loading Overlay */}
@@ -167,7 +152,7 @@ export default function SignupPage() {
               {/* Content with enhanced styling */}
               <div className="relative z-10 flex flex-col items-center">
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-yellow-600 to-amber-700 font-bold text-lg drop-shadow-sm">
-                  Get 14 days Premium FREE!
+                  Get 30 days Premium FREE!
                 </span>
                 <span className="text-yellow-700 text-sm font-medium">
                   No credit card required.

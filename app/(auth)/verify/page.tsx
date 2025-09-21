@@ -4,8 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Header from '@/components/header'
 import Footer from '@/components/footer'
 import { createClient } from '@/lib/supabase/client'
-import { Bounce, ToastContainer, toast } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
+import { toast } from 'react-toastify'
 
 function VerifyInner() {
   const supabase = createClient()
@@ -63,20 +62,6 @@ function VerifyInner() {
 export default function VerifyPage() {
   return (
     <>
-      <ToastContainer
-        position="top-right"
-        autoClose={4000}
-        limit={3}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick={false}
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-        transition={Bounce}
-      />
       <Header />
       <Suspense>
         <VerifyInner />

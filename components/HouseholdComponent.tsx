@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
 import { Edit2, LogOut, Crown, MoreVertical } from "lucide-react"
-import { toast, ToastContainer } from "react-toastify"
+import { toast } from "react-toastify"
 import { useI18n } from "@/lib/i18n/LocaleProvider"
 
 interface HouseholdComponentProps {
@@ -28,7 +28,7 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
 
   useEffect(() => {
     const fetchHousehold = async () => {
-      const household_id = user?.household_id
+      const household_id = user?.current_household_id
       setLoadError(null)
       if (!household_id) {
         setIsLoading(false)
@@ -52,11 +52,18 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
         setHouseholdCode(household.code || "")
         const ownerId = household.owner_id ?? household.ownerId ?? household.owner
         setHouseholdOwnerId(ownerId ? String(ownerId) : "")
-        if (Array.isArray(household.members) && household.members.length > 0) {
+        // Load via membership table
+        const { data: memberRows, error: mErr } = await supabase
+          .from('household_members')
+          .select('user_id')
+          .eq('household_id', household_id)
+        if (mErr) throw mErr
+        const ids = (memberRows || []).map((r: any) => r.user_id)
+        if (ids.length > 0) {
           const { data: users, error: usersErr } = await supabase
             .from('users')
             .select('id, name, email, profilePicture')
-            .in('id', household.members)
+            .in('id', ids)
           if (usersErr) throw usersErr
           if (!mounted) return
           setHouseholdMembers((users || []).map((u: any) => ({ ...u, id: String(u.id) })))
@@ -74,7 +81,7 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
     return () => {
       // Mark as unmounted to avoid setting state after unmount
     }
-  }, [user?.household_id])
+  }, [user?.current_household_id])
 
   useEffect(() => {
     if (isEditingName) {
@@ -112,9 +119,9 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
       }
       setIsSavingName(true)
       const supabase = require('@/lib/supabase/client').createClient();
-      let { error } = await supabase.from('household').update({ household_name: nextName }).eq('id', user?.household_id)
+      let { error } = await supabase.from('household').update({ household_name: nextName }).eq('id', user?.current_household_id)
       if (error) {
-        const res2 = await supabase.from('household').update({ householdName: nextName }).eq('id', user?.household_id)
+        const res2 = await supabase.from('household').update({ householdName: nextName }).eq('id', user?.current_household_id)
         if (res2.error) throw res2.error
       }
       setHouseholdName(nextName)
@@ -176,10 +183,13 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
       setProcessingRemoveId(String(memberId))
       const supabase = require('@/lib/supabase/client').createClient();
       const newMembers = householdMembers.filter((m) => String(m.id) !== String(memberId)).map((m) => m.id)
-      const { error: hErr } = await supabase.from('household').update({ members: newMembers }).eq('id', user.household_id)
-      if (hErr) throw hErr
-      const { error: uErr } = await supabase.from('users').update({ household_id: null }).eq('id', memberId)
-      if (uErr) throw uErr
+      // Delete from membership table
+      const { error: delErr } = await supabase
+        .from('household_members')
+        .delete()
+        .eq('household_id', user.current_household_id)
+        .eq('user_id', memberId)
+      if (delErr) throw delErr
       setHouseholdMembers((prev) => prev.filter((m) => String(m.id) !== String(memberId)))
       setPendingRemoveId(null)
       toast.success(t('memberRemoved'), { position: 'top-center', autoClose: 1500 })
@@ -200,7 +210,7 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
       }
       if (String(memberId) === String(householdOwnerId)) return
       const supabase = require('@/lib/supabase/client').createClient();
-      const { error } = await supabase.from('household').update({ owner_id: memberId }).eq('id', user.household_id)
+  const { error } = await supabase.from('household').update({ owner_id: memberId }).eq('id', user.current_household_id)
       if (error) throw error
       setHouseholdOwnerId(String(memberId))
       toast.success(t('ownershipTransferred'), { position: 'top-center', autoClose: 1500 })
@@ -215,11 +225,12 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
       if (isLeaving) return
       setIsLeaving(true)
       const supabase = require('@/lib/supabase/client').createClient();
-      const newMembers = householdMembers.filter((m) => String(m.id) !== String(user.id)).map((m) => m.id)
-      const { error: hErr } = await supabase.from('household').update({ members: newMembers }).eq('id', user.household_id)
-      if (hErr) throw hErr
-      const { error: uErr } = await supabase.from('users').update({ household_id: null }).eq('id', user.id)
-      if (uErr) throw uErr
+      const { error: delErr } = await supabase
+        .from('household_members')
+        .delete()
+        .eq('household_id', user.current_household_id)
+        .eq('user_id', user.id)
+      if (delErr) throw delErr
       toast.success(t('youLeftHousehold'), { position: 'top-center', autoClose: 1500 })
       if (typeof window !== 'undefined') window.location.reload()
     } catch (e) {
@@ -234,10 +245,7 @@ export default function HouseholdComponent({ user }: HouseholdComponentProps) {
     <>
     <div className="rounded-lg border bg-white">
       <div className="p-4 border-b">
-        <ToastContainer 
-          position="top-center"
-          autoClose={1500}
-          theme="colored"/>
+        {/* Toasts handled globally */}
         {isEditingName ? (
           <div className="flex items-center gap-2 w-full">
             <input

@@ -6,6 +6,7 @@ import {
   fetchExpenses,
   fetchUsers,
   fetchHouseholdById,
+  fetchHouseholdMembers,
   addExpense,
   updateExpense,
   deleteExpense,
@@ -22,7 +23,7 @@ export function useExpenses(user: any) {
 
   // Load expenses
   const loadExpenses = async () => {
-    const household_id = user?.household_id
+    const household_id = user?.current_household_id
     if (!household_id) return
 
     setLoading(true)
@@ -33,20 +34,11 @@ export function useExpenses(user: any) {
       setExpenses(res)
 
       // 2. Fetch household to get members (and meta) via helper
-      const household = await fetchHouseholdById(household_id)
-      if (!household) {
-        setUsersMap({})
-        setLoading(false)
-        return
-      }
-
-      const memberIds: any[] = household.members || []
-
-      // 3. Fetch all users in the household via helper
-      if (memberIds.length > 0) {
-        const usersRes = await fetchUsers(memberIds)
+      // 2b. Fetch members using membership table
+      const members = await fetchHouseholdMembers(household_id)
+      if ((members || []).length > 0) {
         const usersMapObj: { [key: string]: string } = {}
-        ;(usersRes || []).forEach((u: any) => {
+        ;(members || []).forEach((u: any) => {
           usersMapObj[u.id?.toString?.() ?? String(u.id)] = u.name || u.email || ''
         })
         setUsersMap(usersMapObj)
@@ -63,14 +55,14 @@ export function useExpenses(user: any) {
 
   // Auto-load when household changes
   useEffect(() => {
-    if (user?.household_id) {
+    if (user?.current_household_id) {
       loadExpenses()
     } else {
       setExpenses([])
       setUsersMap({})
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.household_id])
+  }, [user?.current_household_id])
 
   return {
     expenses,
