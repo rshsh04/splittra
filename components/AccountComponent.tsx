@@ -1,5 +1,5 @@
 "use client"
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import Link from "next/link"
 import { toast } from "react-toastify"
 import { loadStripe } from "@stripe/stripe-js"
@@ -25,6 +25,7 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
   const [showPremiumModal, setShowPremiumModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const premiumModalRef = useRef<HTMLDivElement | null>(null)
 
   // Change password state
   const [newPassword, setNewPassword] = useState("")
@@ -104,7 +105,7 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
         if (!errBody) {
           try { errBody = await res.text() } catch {}
         }
-        console.error("Checkout creation failed:", errBody)
+        console.error("Checkout creation failed: you need to have a subscription", errBody)
         toast.error(t('checkoutCreationFailed'))
         return
       }
@@ -148,6 +149,17 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
       setIsChangingPassword(false)
     }
   }
+
+  useEffect(() => {
+    if (showPremiumModal && premiumModalRef.current) {
+      setTimeout(() => {
+        const firstFocusable = premiumModalRef.current!.querySelector<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        firstFocusable?.focus()
+      }, 0)
+    }
+  }, [showPremiumModal])
 
   return (
     <div className="space-y-6">
@@ -331,11 +343,20 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
 
       {/* Premium Modal */}
       {showPremiumModal && (
-        <div className="fixed inset-0 backdrop-blur-md bg-white bg-opacity-20 flex items-center justify-center z-[100]">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 backdrop-blur-md bg-white bg-opacity-20 flex items-center justify-center z-[100]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="premium-modal-title"
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowPremiumModal(false) }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
+            ref={premiumModalRef}
+          >
             <div className="p-6 border-b border-slate-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <h2 id="premium-modal-title" className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                   <Crown className="w-6 h-6 text-yellow-500" />
                   {t('premiumSubscription')}
                 </h2>
@@ -369,8 +390,12 @@ export default function AccountComponent({ user, hasPremium, onBilling }: Accoun
                       <li>{t('prioritySupport')}</li>
                       <li>{t('exportReports')}</li>
                     </ul>
-                    <Link href="/upgrade" onClick={() => setShowPremiumModal(false)}>
-                      <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-semibold hover:opacity-90">{t('upgradeToPremiumCta')}</button>
+                    <Link
+                      href="/upgrade"
+                      onClick={() => setShowPremiumModal(false)}
+                      className="w-full inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-semibold text-center hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {t('upgradeToPremiumCta')}
                     </Link>
                   </div>
                 </div>

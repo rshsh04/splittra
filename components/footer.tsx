@@ -12,7 +12,7 @@ export default function Footer() {
               <Link href="/" className="flex items-center">
                 <img
                   src="/logo.png"
-                  alt="SplitIt Logo"
+                  alt="Splittra Logo"
                   className="h-8 w-auto"
                 />
               </Link>
@@ -61,11 +61,19 @@ export default function Footer() {
               </h3>
               <ul className="space-y-3">
                 <li>
+                  <Link 
+                    href="/support" 
+                    className="text-sm text-slate-500 hover:text-slate-700 transition-colors duration-200"
+                  >
+                    Support
+                  </Link>
+                </li>
+                <li>
                   <a 
                     href="mailto:support@splitit.com"
                     className="text-sm text-slate-500 hover:text-slate-700 transition-colors duration-200"
                   >
-                    support@splitit.com
+                    support@splittra.se
                   </a>
                 </li>
               </ul>
@@ -75,7 +83,7 @@ export default function Footer() {
           {/* Copyright */}
           <div className="mt-8 pt-8 border-t border-slate-200">
             <p className="text-sm text-slate-400 text-center">
-              © {new Date().getFullYear()} SplitIt. All rights reserved.
+              © {new Date().getFullYear()} Splittra. All rights reserved.
             </p>
           </div>
         </div>

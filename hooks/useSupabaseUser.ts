@@ -38,22 +38,20 @@ export default function useSupabaseUser() {
               userRow.auth_id = sessionUser.id;
             }
           } else {
-            // If not found, insert new user row
+            // If not found, create/update user row via upsert on unique email
             const payload: any = {
               email: sessionUser.email,
               name: sessionUser.user_metadata?.name || '',
-              householdId: null,
               profilePicture: "https://kfixndvekvohfhrwzcbo.supabase.co/storage/v1/object/public/PP/default-avatar.jpg",
-              premiumUntil: null, // default to no premium
               auth_id: sessionUser.id,
-            };
-            const { data: inserted, error: insertErr } = await supabase
+            }
+            const { data: inserted, error: upsertErr } = await supabase
               .from('users')
-              .insert(payload)
+              .upsert(payload, { onConflict: 'email' })
               .select('*')
-              .maybeSingle();
-            if (!insertErr) {
-              userRow = inserted;
+              .maybeSingle()
+            if (!upsertErr) {
+              userRow = inserted
             }
           }
         } catch (e) {

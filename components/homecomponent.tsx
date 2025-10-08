@@ -191,6 +191,9 @@ export default function HomeComponent({ user }: { user: any }) {
               <button
                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 onClick={() => setShowProfileDropdown((v) => !v)}
+                aria-haspopup="true"
+                aria-expanded={showProfileDropdown}
+                aria-controls="profile-dropdown-menu"
               >
                 <div className="flex items-center gap-2">
                   <img src={user?.profilePicture || '/default-avatar.jpg'} alt="Profile" className="w-8 h-8 rounded-full border object-cover" />
@@ -207,15 +210,17 @@ export default function HomeComponent({ user }: { user: any }) {
                 <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
               </button>
               {showProfileDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <div id="profile-dropdown-menu" role="menu" className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                   <button
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                    role="menuitem"
                     onClick={() => { setActiveView('account'); setShowProfileDropdown(false) }}
                   >
                     <Settings className="w-4 h-4" /> {t('accountSettings')}
                   </button>
                   <button
                     className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    role="menuitem"
                     onClick={handleLogout}
                   >
                     <LogOut className="w-4 h-4" /> {t('signOut')}

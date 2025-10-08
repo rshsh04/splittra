@@ -44,10 +44,11 @@ export default function Header() {
         >
           {t('dashboard')}
         </button>
-        <Link href="/support">
-          <button className="btn btn-ghost rounded-md text-neutral hover:bg-base-200 px-3 py-1 text-sm">
-            {t('support')}
-          </button>
+        <Link
+          href="/support"
+          className="btn btn-ghost rounded-md text-neutral hover:bg-base-200 px-3 py-1 text-sm"
+        >
+          {t('support')}
         </Link>
       </div>
     </header>

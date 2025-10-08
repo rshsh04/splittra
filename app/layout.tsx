@@ -32,7 +32,15 @@ export default function RootLayout({
     <html lang="en" dir="ltr">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <LocaleProvider initialLocale="en">
-          {children}
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-white text-blue-600 px-4 py-2 rounded shadow z-50"
+          >
+            Skip to main content
+          </a>
+          <div id="main-content" className="outline-none focus:outline-none">
+            {children}
+          </div>
           <ToasterClient />
         </LocaleProvider>
       </body>

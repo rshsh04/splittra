@@ -1,4 +1,3 @@
-
 'use client'
 import { Suspense, useState, useEffect } from 'react'
 import Image from 'next/image'
@@ -11,6 +10,7 @@ import LoadingScreen from '@/components/LoadingScreen'
 import Footer from '@/components/footer'
 import { createClient } from '@/lib/supabase/client'
 import useSupabaseUser from '@/hooks/useSupabaseUser'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 function LoginPageInner() {
   const [email, setEmail] = useState('')
@@ -20,6 +20,7 @@ function LoginPageInner() {
   const search = useSearchParams()
   const nextPath = search?.get('next') || '/dashboard'
   const supabase = createClient()
+  const { t } = useI18n()
 
   // Redirect if already logged in
   useEffect(() => {
@@ -33,11 +34,11 @@ function LoginPageInner() {
 
   const validateForm = () => {
     if (!email || !password) {
-      toast.error('Email and password are required')
+      toast.error(t('emailPasswordRequired'))
       return false
     }
     if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      toast.error('Please enter a valid email address')
+      toast.error(t('invalidEmail'))
       return false
     }
     return true
@@ -48,11 +49,11 @@ function LoginPageInner() {
     const promise = supabase.auth.signInWithPassword({ email, password })
 
     toast.promise(promise, {
-      pending: 'Logging in...',
-      success: 'Login successful! 👋',
+      pending: t('loggingIn'),
+      success: t('loginSuccess'),
       error: {
         render({ data }: { data?: any }) {
-          const message = data?.error?.message || data?.message || 'Login failed'
+          const message = data?.error?.message || data?.message || t('loginFailedGeneric')
           return message
         }
       }
@@ -68,10 +69,10 @@ function LoginPageInner() {
 
   const handleGoogleLogin = async () => {
     try {
-  const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: typeof window !== 'undefined' ? window.location.origin + (nextPath || '/dashboard') : '' } })
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: typeof window !== 'undefined' ? window.location.origin + (nextPath || '/dashboard') : '' } })
       if (error) toast.error(error.message)
     } catch (err: any) {
-      toast.error(err?.message || 'Google login failed')
+      toast.error(err?.message || t('googleLoginFailed'))
     }
   }
 
@@ -88,7 +89,7 @@ function LoginPageInner() {
 
           {/* Form */}
           <div className="flex flex-col justify-center items-center w-full md:w-1/2 p-8">
-            <h2 className="text-2xl font-bold mb-6 text-center">Welcome Back 👋</h2>
+            <h2 className="text-2xl font-bold mb-6 text-center">{t('welcomeBack')}</h2>
 
             <button
               className="btn bg-base-100 rounded-lg border border-neutral w-full flex items-center gap-2 mb-4 hover:bg-base-200"
@@ -104,15 +105,15 @@ function LoginPageInner() {
                   <path fill="#ea4335" d="M153 219c22-69 116-109 179-50l55-54c-78-75-230-72-297 55" />
                 </g>
               </svg>
-              Login with Google
+              {t('loginWithGoogle')}
             </button>
 
-            <p className="text-sm text-gray-500 my-3">— or use your email —</p>
+            <p className="text-sm text-gray-500 my-3">{t('orUseEmail')}</p>
 
             <label className="input input-bordered w-full mb-4 flex items-center gap-2">
               <input
                 type="email"
-                placeholder="mail@site.com"
+                placeholder={t('emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -124,7 +125,7 @@ function LoginPageInner() {
               <TbPassword className="h-[1.2em] opacity-50" />
               <input
                 type="password"
-                placeholder="password"
+                placeholder={t('passwordPlaceholder').toLowerCase()}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -133,9 +134,9 @@ function LoginPageInner() {
               
             </label>
             <p className="text-sm text-gray-600 flex justify-end w-full mb-1">
-              Forgot your password?{' '}
+              {t('forgotPasswordQuestion')} {' '}
               <Link href="/reset-password" className="link link-primary">
-                Reset it
+                {t('resetIt')}
               </Link>
             </p>
             </div>
@@ -144,13 +145,13 @@ function LoginPageInner() {
               className="btn btn-primary w-full rounded-lg mb-4"
               onClick={handleLogin}
             >
-              Login
+              {t('loginAction')}
             </button>
 
             <p className="text-sm text-gray-600">
-              Don&apos;t have an account?{' '}
+              {t('dontHaveAccount')} {' '}
               <Link href="/signup" className="link link-primary">
-                Sign up
+                {t('signUpLink')}
               </Link>
             </p>
           </div>
@@ -162,10 +163,11 @@ function LoginPageInner() {
 }
 
 function LoginFallback() {
+  const { t } = useI18n()
   return (
     <div className="min-h-screen flex items-center justify-center bg-base-300 px-4">
       <div className="bg-base-200 rounded-2xl shadow-xl py-8 w-full max-w-md text-center">
-        <h2 className="text-xl font-semibold">Loading…</h2>
+        <h2 className="text-xl font-semibold">{t('loadingEllipsis')}</h2>
       </div>
     </div>
   )
@@ -174,11 +176,9 @@ function LoginFallback() {
 export default function LoginPage() {
   return (
     <>
-      <Header />
       <Suspense fallback={<LoginFallback />}>
         <LoginPageInner />
       </Suspense>
-      <Footer />
     </>
   )
 }

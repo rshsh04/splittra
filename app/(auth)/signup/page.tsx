@@ -1,4 +1,3 @@
-
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
@@ -10,6 +9,7 @@ import useSupabaseUser from '@/hooks/useSupabaseUser'
 import LoadingScreen from '@/components/LoadingScreen'
 import Footer from '@/components/footer'
 import { createClient } from '@/lib/supabase/client'
+import { useI18n } from '@/lib/i18n/LocaleProvider'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -18,9 +18,12 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [loadingSignup, setLoadingSignup] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [lastSentEmail, setLastSentEmail] = useState<string | null>(null)
   const router = useRouter()
   const { user, loading } = useSupabaseUser()
   const supabase = createClient()
+  const { t } = useI18n()
 
   // Redirect if already logged in
   useEffect(() => {
@@ -61,45 +64,37 @@ export default function SignupPage() {
 
       toast.promise(promise, {
         pending: 'Creating your account...',
-        success: 'Account created successfully! 👋',
-        error: {
-          render({ data }: { data?: any }) {
-            const message = data?.error?.message || data?.message || 'Signup failed'
-            setError(message)
-            return message
-          }
-        }
+        success: 'Account created! Sending confirmation email...',
+        error: 'Signup failed'
       })
 
       const { data, error } = await promise
+      console.debug('supabase.signUp response', { data, error })
+
       if (error) {
+        const message = (error as any)?.message || 'Signup failed'
+        setError(message)
+        toast.error(message)
         setLoadingSignup(false)
         return
       }
 
-      // Create or update users table row. Don't force `id` (bigint); store auth_id (uuid).
+      // Always send our custom confirmation email (even if Supabase also sends one; user will get at least ours)
       try {
-        const authId = data.user?.id || null;
-        if (authId) {
-          const upsertResult = await supabase.from('users').upsert(
-            {
-              email,
-              name,
-              auth_id: authId,
-              premiumUntil: null,
-            },
-            { onConflict: 'email' }
-          );
-          // ...
-        } else {
-          console.warn('No auth user id returned from signUp; skipping users table upsert');
-        }
-      } catch (e) {
-        console.error('Failed to create/upsert users row:', e);
+        await fetch('/api/auth/send-confirmation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        })
+        setLastSentEmail(email)
+      } catch (mailErr) {
+        console.warn('Custom confirmation email failed', mailErr)
       }
 
+      setSuccess(true)
+      // Do not redirect immediately; wait for user to confirm email
+      toast.info('Check your inbox to confirm your email')
       setLoadingSignup(false)
-      router.push('/dashboard')
     } catch (err: any) {
       setLoadingSignup(false)
       setError(err.message || 'Signup failed')
@@ -114,6 +109,27 @@ export default function SignupPage() {
     } catch (err: any) {
       console.error(err)
       toast.error(err?.message || 'Google signup failed')
+    }
+  }
+
+  const handleResend = async () => {
+    if (!lastSentEmail) return
+    setResending(true)
+    try {
+      const res = await fetch('/api/auth/send-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: lastSentEmail })
+      })
+      if (res.ok) {
+        toast.success(t('resendSuccess'))
+      } else {
+        toast.error(t('resendFailed'))
+      }
+    } catch (e) {
+      toast.error(t('resendFailed'))
+    } finally {
+      setResending(false)
     }
   }
 
@@ -139,7 +155,7 @@ export default function SignupPage() {
 
           {/* Signup Form */}
           <div className="flex flex-col justify-center items-center w-full md:w-1/2 p-8">
-            <h2 className="text-2xl font-bold mb-2 text-center">Create an Account ✨</h2>
+            <h2 className="text-2xl font-bold mb-2 text-center">{t('createAccountTitle')}</h2>
             <div className="relative overflow-hidden bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100 border-2 border-yellow-300 rounded-2xl px-4 py-4 mb-6 flex flex-col items-center shadow-lg">
               {/* Animated background glow */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-200/20 to-transparent animate-pulse rounded-2xl"></div>
@@ -152,13 +168,13 @@ export default function SignupPage() {
               {/* Content with enhanced styling */}
               <div className="relative z-10 flex flex-col items-center">
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-yellow-600 to-amber-700 font-bold text-lg drop-shadow-sm">
-                  Get 30 days Premium FREE!
+                  {t('trialBannerHeadline')}
                 </span>
                 <span className="text-yellow-700 text-sm font-medium">
-                  No credit card required.
+                  {t('trialBannerLine1')}
                 </span>
                 <span className="text-yellow-700 text-sm font-medium">
-                  Enjoy all premium features during your trial.
+                  {t('trialBannerLine2')}
                 </span>
               </div>
 
@@ -169,10 +185,7 @@ export default function SignupPage() {
             {error && <p className="text-red-500 mb-3">{error}</p>}
             {success && (
               <p className="text-green-600 mb-3">
-                Account created! You can now{' '}
-                <Link href="/login" className="link link-primary">
-                  login
-                </Link>.
+                Account created! Please check your email for a confirmation link.
               </p>
             )}
 
@@ -191,15 +204,15 @@ export default function SignupPage() {
                   <path fill="#ea4335" d="M153 219c22-69 116-109 179-50l55-54c-78-75-230-72-297 55" />
                 </g>
               </svg>
-              Sign up with Google
+              {t('signupWithGoogle')}
             </button>
 
-            <p className="text-sm text-gray-500 my-3">— or use your email —</p>
+            <p className="text-sm text-gray-500 my-3">{t('orUseEmail')}</p>
 
             <label className="input input-bordered w-full mb-4 flex items-center gap-2">
               <input
                 type="text"
-                placeholder="Your Name"
+                placeholder={t('yourNamePlaceholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -211,7 +224,7 @@ export default function SignupPage() {
             <label className="input input-bordered w-full mb-4 flex items-center gap-2">
               <input
                 type="email"
-                placeholder="mail@site.com"
+                placeholder={t('emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -223,7 +236,7 @@ export default function SignupPage() {
             <label className="input input-bordered w-full mb-6 flex items-center gap-2">
               <input
                 type="password"
-                placeholder="Password"
+                placeholder={t('passwordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -237,13 +250,27 @@ export default function SignupPage() {
               onClick={handleSignup}
               disabled={loadingSignup}
             >
-              Sign up
+              {t('signUpAction')}
             </button>
 
+            {success && (
+              <div className="w-full flex flex-col items-center gap-3 mb-4">
+                <p className="text-green-600 text-sm text-center">{t('accountCreatedCheckEmail')}</p>
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resending}
+                  className="btn btn-sm btn-outline"
+                >
+                  {resending ? t('resending') : t('resendConfirmation')}
+                </button>
+              </div>
+            )}
+
             <p className="text-sm text-gray-600">
-              Already have an account?{' '}
+              {t('alreadyHaveAccount')} {' '}
               <Link href="/login" className="link link-primary">
-                Login
+                {t('loginLink')}
               </Link>
             </p>
           </div>

@@ -4,7 +4,7 @@ const host = process.env.SMTP_HOST
 const port = Number(process.env.SMTP_PORT || 587)
 const user = process.env.SMTP_USER
 const pass = process.env.SMTP_PASS
-const from = process.env.SMTP_FROM || 'Splittra <no-reply@localhost>'
+const from = process.env.SMTP_FROM || 'Splittra <no-reply@splittra.se>'
 
 if (!host || !user || !pass) {
   // We avoid throwing at import time to not break builds; consumers should handle errors
