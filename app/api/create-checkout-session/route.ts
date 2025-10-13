@@ -35,8 +35,11 @@ export async function POST(req: NextRequest) {
           quantity: 1,
         },
       ],
+      
+      payment_method_collection: 'if_required',
+      billing_address_collection: 'auto',
       customer_email: email,
-      subscription_data: userId ? { metadata: { userId: String(userId) } } : undefined,
+      subscription_data: { trial_period_days: 30, metadata: { userId: String(userId) } },
       mode: 'subscription',
       success_url: `${origin}/dashboard?success=true`,
       cancel_url: `${origin}/upgrade?canceled=true`,
