@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { sendMail } from '@/lib/email/mailer'
+import { createClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
 
 // Simple in-memory rate limiter (per email) – consider Redis/Upstash for production
 const WINDOW_MS = 1000 * 60; // 1 minute
@@ -64,6 +66,26 @@ export async function POST(req: Request) {
     if (dry) {
       console.log('[support contact dry-run]', { supportTo, subject, trimmedEmail, trimmedName, locale })
       return NextResponse.json({ ok: true, dry: true })
+    }
+
+    // Save to database first
+    try {
+      const cookieStore = cookies()
+      const supabase = createClient(cookieStore)
+      
+      await supabase
+        .from('support_messages')
+        .insert({
+          name: trimmedName,
+          email: trimmedEmail,
+          message: trimmedMessage,
+          locale: locale || 'en',
+          status: 'open',
+          priority: 'normal'
+        })
+    } catch (dbError) {
+      console.error('Failed to save support message to database:', dbError)
+      // Continue with email sending even if DB save fails
     }
 
     if (!smtpConfigured()) {
