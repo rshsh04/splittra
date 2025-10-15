@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://splittra.app';
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://splittra.se';
 
 export async function GET() {
   // Static routes to include in sitemap
