@@ -15,6 +15,7 @@ export default function JoinPage() {
   )
 }
 
+
 function JoinFallback() {
   const { t } = { t: (k: string) => k }
   return (

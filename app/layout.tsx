@@ -15,9 +15,70 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.splittra.se";
+
 export const metadata: Metadata = {
-  title: "Splittra - Simple Expense Sharing",
+  metadataBase: new URL(siteUrl),
+  applicationName: "Splittra",
+  title: {
+    default: "Splittra - Simple Expense Sharing",
+    template: "%s | Splittra",
+  },
   description: "Effortlessly split expenses with friends and family",
+  keywords: [
+    "split expenses",
+    "expense sharing",
+    "split bills",
+    "household expenses",
+    "Splittra",
+  ],
+  authors: [{ name: "Splittra", url: siteUrl }],
+  icons: {
+    icon: "/logo.png",
+    apple: "/default-avatar.jpg",
+    shortcut: "/logocropped.png",
+  },
+  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#ffffff" }, { media: "(prefers-color-scheme: dark)", color: "#000000" }],
+  openGraph: {
+    title: "Splittra - Simple Expense Sharing",
+    description: "Effortlessly split expenses with friends and family",
+    url: siteUrl,
+    siteName: "Splittra",
+    images: [
+      {
+        url: `${siteUrl}/logocropped.png`,
+        width: 1200,
+        height: 630,
+        alt: "Splittra logo",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Splittra - Simple Expense Sharing",
+    description: "Effortlessly split expenses with friends and family",
+    creator: "@splittra",
+  },
+  alternates: {
+    canonical: siteUrl,
+    languages: {
+      "en-US": `${siteUrl}/`,
+      sv: `${siteUrl}/sv`,
+    },
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default function RootLayout({
@@ -30,6 +91,25 @@ export default function RootLayout({
   // We'll default to 'en' and the client will correct.
   return (
     <html lang="en" dir="ltr">
+      <head>
+        {/* Structured data for Organization and WebSite */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Splittra",
+              url: siteUrl,
+              potentialAction: {
+                "@type": "SearchAction",
+                target: `${siteUrl}/?q={search_term_string}`,
+                "query-input": "required name=search_term_string",
+              },
+            }),
+          }}
+        />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <LocaleProvider initialLocale="en">
           <a

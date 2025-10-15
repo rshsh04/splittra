@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Sitemap: https://splittra.app/sitemap.xml
+
+# Crawl-delay can be added for polite crawling
+# Crawl-delay: 10
+
+User-agent: *
+Disallow: /api/
+Disallow: /admin/
